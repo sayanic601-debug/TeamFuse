@@ -16,6 +16,7 @@ const demoUsers = [
     name: "Rahul",
     role: "Backend Developer",
     experience: "Intermediate",
+    projectGoal: "Hackathon",
     skills: ["Node.js", "MongoDB", "Express"],
     emoji: "👨🏻‍💻",
     color: "bg-[#BDE7D6]",
@@ -25,6 +26,7 @@ const demoUsers = [
     name: "Ananya",
     role: "ML Engineer",
     experience: "Advanced",
+    projectGoal: "Startup",
     skills: ["Python", "Machine Learning", "Figma"],
     emoji: "👩🏻‍🔬",
     color: "bg-[#FFD86B]",
@@ -34,6 +36,7 @@ const demoUsers = [
     name: "Riya",
     role: "UI/UX Designer",
     experience: "Intermediate",
+    projectGoal: "College Project",
     skills: ["UI/UX", "Figma", "React"],
     emoji: "👩🏻‍🎨",
     color: "bg-[#F7A6C7]",
@@ -43,6 +46,7 @@ const demoUsers = [
     name: "Arjun",
     role: "Full Stack Developer",
     experience: "Advanced",
+    projectGoal: "Hackathon",
     skills: ["React", "Node.js", "MongoDB"],
     emoji: "👨🏻‍💻",
     color: "bg-[#DCCFFF]",
@@ -52,6 +56,7 @@ const demoUsers = [
     name: "Sneha",
     role: "Frontend Developer",
     experience: "Beginner",
+    projectGoal: "Personal Project",
     skills: ["React", "Java", "UI/UX"],
     emoji: "👩🏻‍💻",
     color: "bg-[#FFD6CE]",
@@ -61,6 +66,7 @@ const demoUsers = [
     name: "Aditya",
     role: "Backend Developer",
     experience: "Intermediate",
+    projectGoal: "Open Source",
     skills: ["Python", "Node.js", "MongoDB"],
     emoji: "👨🏻‍💻",
     color: "bg-[#BDE7D6]",
@@ -78,22 +84,40 @@ function FindTeammates() {
     localStorage.getItem("teamfuseProfile")
   )
 
+  // Calculate compatibility score
   const calculateMatch = (user) => {
     if (!profile) return 75
 
     const lookingFor = profile.lookingFor || []
 
-    if (lookingFor.length === 0) return 75
+    // -----------------------------
+    // 1. Skill Score - 60 points
+    // -----------------------------
 
     const matchedSkills = user.skills.filter((skill) =>
       lookingFor.includes(skill)
     )
 
-    const skillScore =
-      (matchedSkills.length / lookingFor.length) * 70
+    let skillScore = 0
+
+    if (lookingFor.length > 0) {
+      skillScore =
+        (matchedSkills.length / lookingFor.length) * 60
+    } else {
+      // If user did not specify required skills
+      skillScore = 45
+    }
+
+    // -----------------------------
+    // 2. Experience Score - 10 points
+    // -----------------------------
 
     const experienceScore =
       profile.experience === user.experience ? 10 : 5
+
+    // -----------------------------
+    // 3. Role Compatibility - 20 points
+    // -----------------------------
 
     let roleScore = 0
 
@@ -111,20 +135,45 @@ function FindTeammates() {
       profile.role === "UI/UX Designer" &&
       user.role !== "UI/UX Designer"
     ) {
-      roleScore = 15
+      roleScore = 20
     } else if (
       profile.role === "ML Engineer" &&
       user.role !== "ML Engineer"
     ) {
-      roleScore = 15
+      roleScore = 20
+    } else if (
+      profile.role &&
+      user.role !== profile.role
+    ) {
+      roleScore = 10
     }
+
+    // -----------------------------
+    // 4. Project Goal - 10 points
+    // -----------------------------
+
+    const projectGoalScore =
+      profile.projectGoal &&
+      profile.projectGoal === user.projectGoal
+        ? 10
+        : 0
+
+    // -----------------------------
+    // Final Score
+    // -----------------------------
 
     return Math.min(
       100,
-      Math.round(skillScore + roleScore + experienceScore)
+      Math.round(
+        skillScore +
+        roleScore +
+        experienceScore +
+        projectGoalScore
+      )
     )
   }
 
+  // Get skills that match user's requirement
   const getMatchedSkills = (user) => {
     const lookingFor = profile?.lookingFor || []
 
@@ -133,11 +182,13 @@ function FindTeammates() {
     )
   }
 
+  // Explain why this teammate is a match
   const getMatchReason = (user) => {
     const matchedSkills = getMatchedSkills(user)
 
     const reasons = []
 
+    // Matching skills
     if (matchedSkills.length > 0) {
       reasons.push(
         `${matchedSkills.length} matching skill${
@@ -146,6 +197,7 @@ function FindTeammates() {
       )
     }
 
+    // Same experience
     if (
       profile?.experience &&
       profile.experience === user.experience
@@ -153,6 +205,15 @@ function FindTeammates() {
       reasons.push("Same experience level")
     }
 
+    // Same project goal
+    if (
+      profile?.projectGoal &&
+      profile.projectGoal === user.projectGoal
+    ) {
+      reasons.push("Same project goal")
+    }
+
+    // Complementary role
     if (
       profile?.role &&
       user.role !== profile.role
@@ -160,6 +221,7 @@ function FindTeammates() {
       reasons.push("Complementary role")
     }
 
+    // Fallback
     if (reasons.length === 0) {
       reasons.push("Potential teammate match")
     }
@@ -167,6 +229,7 @@ function FindTeammates() {
     return reasons
   }
 
+  // Search + filter + sort
   const filteredUsers = useMemo(() => {
     return demoUsers
       .filter((user) => {
@@ -190,6 +253,7 @@ function FindTeammates() {
       )
   }, [search, roleFilter, profile])
 
+  // Add/remove teammate
   const toggleUser = (id) => {
     setSelectedUsers((prev) =>
       prev.includes(id)
@@ -198,6 +262,7 @@ function FindTeammates() {
     )
   }
 
+  // Build team
   const buildTeam = () => {
     if (selectedUsers.length === 0) {
       alert("Add at least one teammate first! 👥")
@@ -310,12 +375,29 @@ function FindTeammates() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] px-4 py-3 font-black outline-none"
             >
-              <option value="All">All Roles</option>
-              <option value="Frontend">Frontend</option>
-              <option value="Backend">Backend</option>
-              <option value="ML">ML</option>
-              <option value="UI/UX">UI/UX</option>
-              <option value="Full Stack">Full Stack</option>
+              <option value="All">
+                All Roles
+              </option>
+
+              <option value="Frontend">
+                Frontend
+              </option>
+
+              <option value="Backend">
+                Backend
+              </option>
+
+              <option value="ML">
+                ML
+              </option>
+
+              <option value="UI/UX">
+                UI/UX
+              </option>
+
+              <option value="Full Stack">
+                Full Stack
+              </option>
             </select>
 
           </div>
@@ -403,20 +485,42 @@ function FindTeammates() {
                 <div className="mt-4">
 
                   <div className="mb-1 flex items-center justify-between text-xs font-black">
-                    <span>COMPATIBILITY</span>
-                    <span>{match}/100</span>
+                    <span>
+                      COMPATIBILITY
+                    </span>
+
+                    <span>
+                      {match}/100
+                    </span>
                   </div>
 
                   <div className="h-3 overflow-hidden rounded-full border-2 border-[#17142B] bg-white">
 
                     <div
                       className="h-full rounded-full bg-[#7046D9] transition-all duration-500"
-                      style={{ width: `${match}%` }}
+                      style={{
+                        width: `${match}%`,
+                      }}
                     />
 
                   </div>
 
                 </div>
+
+                {/* Project Goal */}
+                {user.projectGoal && (
+                  <div className="mt-4 flex items-center justify-between rounded-xl border-2 border-[#17142B] bg-white/70 px-3 py-2">
+
+                    <span className="text-xs font-black uppercase tracking-wide">
+                      Project
+                    </span>
+
+                    <span className="text-xs font-black">
+                      {user.projectGoal}
+                    </span>
+
+                  </div>
+                )}
 
                 {/* Skills */}
                 <div className="mt-5">

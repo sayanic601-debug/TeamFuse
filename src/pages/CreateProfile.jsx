@@ -11,6 +11,7 @@ import {
   Wrench,
   Search,
   Zap,
+  Target,
 } from "lucide-react"
 
 function CreateProfile() {
@@ -53,6 +54,7 @@ function CreateProfile() {
       name: e.target.name.value,
       role: e.target.role.value,
       experience: e.target.experience.value,
+      projectGoal: e.target.projectGoal.value,
       skills: selectedSkills,
       lookingFor,
     }
@@ -222,7 +224,7 @@ function CreateProfile() {
                 </div>
 
                 {/* Experience */}
-                <div className="md:col-span-2">
+                <div>
 
                   <label className="mb-2 flex items-center gap-2 font-black">
                     <GraduationCap size={16} />
@@ -248,6 +250,47 @@ function CreateProfile() {
 
                     <option value="Advanced">
                       Advanced
+                    </option>
+
+                  </select>
+
+                </div>
+
+                {/* Project Goal */}
+                <div>
+
+                  <label className="mb-2 flex items-center gap-2 font-black">
+                    <Target size={16} />
+                    Project Goal
+                  </label>
+
+                  <select
+                    name="projectGoal"
+                    required
+                    className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] px-4 py-3 font-bold outline-none transition focus:ring-4 focus:ring-[#DCCFFF]"
+                  >
+                    <option value="">
+                      What are you building?
+                    </option>
+
+                    <option value="Hackathon">
+                      Hackathon
+                    </option>
+
+                    <option value="College Project">
+                      College Project
+                    </option>
+
+                    <option value="Startup">
+                      Startup
+                    </option>
+
+                    <option value="Open Source">
+                      Open Source
+                    </option>
+
+                    <option value="Personal Project">
+                      Personal Project
                     </option>
 
                   </select>
