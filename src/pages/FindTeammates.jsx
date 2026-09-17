@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react"
-import { ArrowLeft, Search, Users, Check, UserPlus } from "lucide-react"
+import {
+  ArrowLeft,
+  Search,
+  Users,
+  Check,
+  UserPlus,
+  Sparkles,
+  Target,
+} from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 const demoUsers = [
@@ -117,6 +125,48 @@ function FindTeammates() {
     )
   }
 
+  const getMatchedSkills = (user) => {
+    const lookingFor = profile?.lookingFor || []
+
+    return user.skills.filter((skill) =>
+      lookingFor.includes(skill)
+    )
+  }
+
+  const getMatchReason = (user) => {
+    const matchedSkills = getMatchedSkills(user)
+
+    const reasons = []
+
+    if (matchedSkills.length > 0) {
+      reasons.push(
+        `${matchedSkills.length} matching skill${
+          matchedSkills.length > 1 ? "s" : ""
+        }`
+      )
+    }
+
+    if (
+      profile?.experience &&
+      profile.experience === user.experience
+    ) {
+      reasons.push("Same experience level")
+    }
+
+    if (
+      profile?.role &&
+      user.role !== profile.role
+    ) {
+      reasons.push("Complementary role")
+    }
+
+    if (reasons.length === 0) {
+      reasons.push("Potential teammate match")
+    }
+
+    return reasons
+  }
+
   const filteredUsers = useMemo(() => {
     return demoUsers
       .filter((user) => {
@@ -168,13 +218,15 @@ function FindTeammates() {
 
   return (
     <div className="min-h-screen bg-[#FFF9EF] px-5 py-8 pb-32 text-[#17142B]">
+
       <div className="mx-auto max-w-6xl">
 
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
+
           <button
             onClick={() => navigate("/create-profile")}
-            className="flex items-center gap-2 font-black hover:-translate-x-1 transition"
+            className="flex items-center gap-2 font-black transition hover:-translate-x-1"
           >
             <ArrowLeft size={20} />
             Back
@@ -184,29 +236,60 @@ function FindTeammates() {
             <Users size={18} />
             Find Teammates
           </div>
+
         </div>
 
         {/* Title */}
         <div className="mb-8">
+
           <div className="mb-3 inline-block rotate-2 rounded-full border-2 border-[#17142B] bg-[#BDE7D6] px-4 py-2 font-black shadow-[4px_4px_0_#17142B]">
             STEP 02
           </div>
 
-          <h1 className="text-4xl font-black md:text-5xl">
-            Build Your Dream Team 💥
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+
+            <h1 className="text-4xl font-black md:text-5xl">
+              Build Your Dream Team 💥
+            </h1>
+
+            <div className="rotate-3 rounded-xl border-2 border-[#17142B] bg-[#F7A6C7] px-3 py-2 text-xs font-black shadow-[3px_3px_0_#17142B]">
+              MATCH. FUSE. BUILD.
+            </div>
+
+          </div>
 
           <p className="mt-3 max-w-2xl text-lg font-bold text-[#17142B]/70">
             Find people whose skills complete yours.
           </p>
+
         </div>
 
         {/* Search + Filter */}
         <div className="mb-8 rounded-3xl border-4 border-[#17142B] bg-white p-5 shadow-[7px_7px_0_#17142B]">
 
+          <div className="mb-4 flex items-center gap-2">
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#DCCFFF]">
+              <Target size={18} />
+            </div>
+
+            <div>
+              <p className="font-black">
+                Find Your Match
+              </p>
+
+              <p className="text-xs font-bold opacity-60">
+                Search and filter potential teammates
+              </p>
+            </div>
+
+          </div>
+
           <div className="flex flex-col gap-4 md:flex-row">
 
+            {/* Search */}
             <div className="relative flex-1">
+
               <Search
                 size={21}
                 className="absolute left-4 top-1/2 -translate-y-1/2"
@@ -216,10 +299,12 @@ function FindTeammates() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or skill..."
-                className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] py-3 pl-12 pr-4 font-bold outline-none focus:ring-4 focus:ring-[#DCCFFF]"
+                className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] py-3 pl-12 pr-4 font-bold outline-none transition focus:ring-4 focus:ring-[#DCCFFF]"
               />
+
             </div>
 
+            {/* Role Filter */}
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
@@ -234,31 +319,55 @@ function FindTeammates() {
             </select>
 
           </div>
+
+          {/* Result Count */}
+          <div className="mt-4 flex items-center justify-between">
+
+            <p className="text-sm font-black opacity-60">
+              {filteredUsers.length} teammate
+              {filteredUsers.length !== 1 ? "s" : ""} found
+            </p>
+
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="text-sm font-black underline"
+              >
+                Clear search
+              </button>
+            )}
+
+          </div>
+
         </div>
 
         {/* Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
           {filteredUsers.map((user) => {
+
             const match = calculateMatch(user)
             const selected = selectedUsers.includes(user.id)
+            const matchedSkills = getMatchedSkills(user)
+            const reasons = getMatchReason(user)
 
             return (
               <div
                 key={user.id}
-                className={`rounded-3xl border-4 border-[#17142B] ${user.color} p-5 shadow-[7px_7px_0_#17142B] transition hover:-translate-y-1`}
+                className={`rounded-3xl border-4 border-[#17142B] ${user.color} p-5 shadow-[7px_7px_0_#17142B] transition duration-200 hover:-translate-y-2 hover:shadow-[9px_9px_0_#17142B]`}
               >
 
-                {/* User */}
+                {/* User Header */}
                 <div className="flex items-start justify-between">
 
                   <div className="flex items-center gap-3">
 
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white text-3xl">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white text-3xl shadow-[2px_2px_0_#17142B]">
                       {user.emoji}
                     </div>
 
                     <div>
+
                       <h2 className="text-xl font-black">
                         {user.name}
                       </h2>
@@ -270,12 +379,14 @@ function FindTeammates() {
                       <p className="text-sm font-bold opacity-60">
                         {user.experience}
                       </p>
+
                     </div>
 
                   </div>
 
                   {/* Match */}
                   <div className="rotate-3 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3 py-2 text-center shadow-[3px_3px_0_#17142B]">
+
                     <p className="text-xl font-black">
                       {match}%
                     </p>
@@ -283,20 +394,91 @@ function FindTeammates() {
                     <p className="text-[9px] font-black uppercase">
                       Match
                     </p>
+
+                  </div>
+
+                </div>
+
+                {/* Match Meter */}
+                <div className="mt-4">
+
+                  <div className="mb-1 flex items-center justify-between text-xs font-black">
+                    <span>COMPATIBILITY</span>
+                    <span>{match}/100</span>
+                  </div>
+
+                  <div className="h-3 overflow-hidden rounded-full border-2 border-[#17142B] bg-white">
+
+                    <div
+                      className="h-full rounded-full bg-[#7046D9] transition-all duration-500"
+                      style={{ width: `${match}%` }}
+                    />
+
                   </div>
 
                 </div>
 
                 {/* Skills */}
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {user.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="rounded-full border-2 border-[#17142B] bg-white px-3 py-1 text-xs font-black"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                <div className="mt-5">
+
+                  <p className="mb-2 text-xs font-black uppercase tracking-wide">
+                    Skills
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+
+                    {user.skills.map((skill) => {
+
+                      const isMatched =
+                        matchedSkills.includes(skill)
+
+                      return (
+                        <span
+                          key={skill}
+                          className={`rounded-full border-2 border-[#17142B] px-3 py-1 text-xs font-black transition ${
+                            isMatched
+                              ? "bg-[#17142B] text-white"
+                              : "bg-white"
+                          }`}
+                        >
+                          {isMatched && "✓ "}
+                          {skill}
+                        </span>
+                      )
+                    })}
+
+                  </div>
+
+                </div>
+
+                {/* Match Explanation */}
+                <div className="mt-4 rounded-2xl border-2 border-[#17142B] bg-white/75 p-3">
+
+                  <div className="mb-2 flex items-center gap-2">
+
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B]">
+                      <Sparkles size={14} />
+                    </div>
+
+                    <p className="text-xs font-black uppercase tracking-wide">
+                      Why this match?
+                    </p>
+
+                  </div>
+
+                  <div className="space-y-1">
+
+                    {reasons.map((reason) => (
+                      <p
+                        key={reason}
+                        className="text-xs font-bold"
+                      >
+                        ✓ {reason}
+                      </p>
+                    ))}
+
+                  </div>
+
                 </div>
 
                 {/* Button */}
@@ -305,9 +487,10 @@ function FindTeammates() {
                   className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#17142B] px-4 py-3 font-black shadow-[4px_4px_0_#17142B] transition active:translate-x-1 active:translate-y-1 active:shadow-none ${
                     selected
                       ? "bg-[#17142B] text-white"
-                      : "bg-white"
+                      : "bg-white hover:-translate-y-1"
                   }`}
                 >
+
                   {selected ? (
                     <>
                       <Check size={19} />
@@ -319,6 +502,7 @@ function FindTeammates() {
                       Add to Team
                     </>
                   )}
+
                 </button>
 
               </div>
@@ -327,10 +511,13 @@ function FindTeammates() {
 
         </div>
 
-        {/* No results */}
+        {/* No Results */}
         {filteredUsers.length === 0 && (
           <div className="rounded-3xl border-4 border-[#17142B] bg-[#F7A6C7] p-10 text-center shadow-[7px_7px_0_#17142B]">
-            <div className="text-5xl">🔎</div>
+
+            <div className="text-5xl">
+              🔎
+            </div>
 
             <h2 className="mt-4 text-2xl font-black">
               No teammates found!
@@ -339,6 +526,17 @@ function FindTeammates() {
             <p className="mt-2 font-bold">
               Try a different name, skill or role.
             </p>
+
+            <button
+              onClick={() => {
+                setSearch("")
+                setRoleFilter("All")
+              }}
+              className="mt-5 rounded-xl border-2 border-[#17142B] bg-white px-5 py-3 font-black shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1"
+            >
+              Reset Filters
+            </button>
+
           </div>
         )}
 
@@ -348,19 +546,30 @@ function FindTeammates() {
       {selectedUsers.length > 0 && (
         <div className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border-4 border-[#17142B] bg-white p-4 shadow-[7px_7px_0_#17142B]">
 
-          <div>
-            <p className="text-2xl font-black">
-              {selectedUsers.length}
-            </p>
+          <div className="flex items-center gap-3">
 
-            <p className="text-sm font-bold">
-              teammate{selectedUsers.length > 1 ? "s" : ""} selected
-            </p>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#BDE7D6]">
+              <Users size={20} />
+            </div>
+
+            <div>
+
+              <p className="text-2xl font-black leading-none">
+                {selectedUsers.length}
+              </p>
+
+              <p className="text-sm font-bold">
+                teammate
+                {selectedUsers.length > 1 ? "s" : ""} selected
+              </p>
+
+            </div>
+
           </div>
 
           <button
             onClick={buildTeam}
-            className="rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-5 py-3 font-black text-white shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1"
+            className="rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-5 py-3 font-black text-white shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
           >
             Build Team →
           </button>
