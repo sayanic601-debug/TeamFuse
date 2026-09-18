@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   ArrowLeft,
   Search,
@@ -85,7 +85,7 @@ function FindTeammates() {
   )
 
   // Calculate compatibility score
-  const calculateMatch = (user) => {
+  const calculateMatch = useCallback((user) => {
     if (!profile) return 75
 
     const lookingFor = profile.lookingFor || []
@@ -98,15 +98,10 @@ function FindTeammates() {
       lookingFor.includes(skill)
     )
 
-    let skillScore = 0
-
-    if (lookingFor.length > 0) {
-      skillScore =
-        (matchedSkills.length / lookingFor.length) * 60
-    } else {
-      // If user did not specify required skills
-      skillScore = 45
-    }
+    const skillScore =
+      lookingFor.length > 0
+        ? (matchedSkills.length / lookingFor.length) * 60
+        : 45
 
     // -----------------------------
     // 2. Experience Score - 10 points
@@ -171,7 +166,7 @@ function FindTeammates() {
         projectGoalScore
       )
     )
-  }
+  }, [profile])
 
   // Get skills that match user's requirement
   const getMatchedSkills = (user) => {
@@ -251,7 +246,7 @@ function FindTeammates() {
         (a, b) =>
           calculateMatch(b) - calculateMatch(a)
       )
-  }, [search, roleFilter, profile])
+  }, [search, roleFilter, calculateMatch])
 
   // Add/remove teammate
   const toggleUser = (id) => {
