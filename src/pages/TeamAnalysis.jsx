@@ -83,13 +83,30 @@ const demoUsers = [
 function TeamAnalysis() {
   const navigate = useNavigate()
 
-  const team = JSON.parse(
-    localStorage.getItem("teamfuseTeam") || "[]"
-  )
-
   const profile = JSON.parse(
     localStorage.getItem("teamfuseProfile") || "null"
   )
+
+  const rawTeam = JSON.parse(
+    localStorage.getItem("teamfuseTeam") || "[]"
+  )
+
+  // Ensure current user is ALWAYS member #1 in team if profile exists, without creating duplicates
+  const team = (() => {
+    if (profile && !rawTeam.some((m) => m.id === "current-user" || m.isCurrentUser)) {
+      const userMember = {
+        ...profile,
+        id: "current-user",
+        isCurrentUser: true,
+        emoji: profile.emoji || "👩🏻‍💻",
+      }
+      return [userMember, ...rawTeam]
+    }
+    return rawTeam
+  })()
+
+  const teamName =
+    localStorage.getItem("teamfuseTeamName") || "Your Squad"
 
   const allSkills = [
     "React",
@@ -302,9 +319,11 @@ if (team.length >= 3 && beginnerCount === team.length) {
     return "Growing Compatibility"
   }
 
-  // Candidates who can fill missing skills
+  // Candidates who can fill missing skills (exclude current user and existing squad members)
   const availableCandidates = demoUsers.filter(
-    (candidate) => !team.some((member) => member.id === candidate.id)
+    (candidate) =>
+      candidate.id !== "current-user" &&
+      !team.some((member) => member.id === candidate.id)
   )
 
   const recommendedCandidates = availableCandidates
@@ -350,6 +369,9 @@ if (team.length >= 3 && beginnerCount === team.length) {
     .sort((a, b) => b.replacementScore - a.replacementScore)
 
   const handleReplaceMember = (oldMember, newMember) => {
+    // Current user can NEVER be replaced
+    if (oldMember.id === "current-user" || oldMember.isCurrentUser) return
+
     const updatedTeam = team.map((member) =>
       member.id === oldMember.id ? newMember : member
     )
@@ -378,16 +400,15 @@ if (team.length >= 3 && beginnerCount === team.length) {
             </div>
 
             <div className="mt-5 inline-block rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
-              ISSUE PENDING
+              YOUR SQUAD IS EMPTY
             </div>
 
             <h1 className="mt-3 text-3xl font-black uppercase text-[#17142B]">
-              No Squad Yet!
+              Your Squad Is Empty
             </h1>
 
             <p className="mt-2 text-sm font-bold text-slate-600 leading-relaxed">
-              Your story starts with your first teammate. Recruit allies from the recruitment
-              wall to activate your team scoreboard.
+              Pick teammates whose skills complement yours to activate your team scoreboard.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -395,7 +416,7 @@ if (team.length >= 3 && beginnerCount === team.length) {
                 onClick={() => navigate("/find-teammates")}
                 className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
-                Find Teammates
+                BUILD YOUR SQUAD
                 <ArrowRight size={15} />
               </button>
 
@@ -433,31 +454,70 @@ if (team.length >= 3 && beginnerCount === team.length) {
           </div>
         </header>
 
-        {/* Hero: Comic Scoreboard Header */}
-        <section className="relative mb-8">
-          <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 bg-halftone-purple opacity-50" />
+        {/* Hero: Comic Team Identity Header */}
+        <section className="relative mb-8 overflow-hidden rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] p-6 shadow-[6px_6px_0_#17142B] sm:p-8">
+          <div className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 bg-halftone-purple opacity-40" />
 
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-3 py-0.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
-            <Sparkles size={13} />
-            SQUAD SCOREBOARD
-          </div>
-
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-black uppercase tracking-tight text-[#17142B] sm:text-4xl lg:text-5xl">
-                Your Dream Team
-              </h1>
-              <p className="mt-2 text-sm font-bold text-slate-600">
-                Let's see what happens when your skills and superpowers fuse together!
-              </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-3 py-1 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+              <Zap size={14} fill="currentColor" />
+              ⚡ TEAMFUSE SQUAD
             </div>
 
-            <div className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+            <div className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
               <Flame size={14} className="text-amber-700" />
               TEAM: FUSED & READY!
             </div>
           </div>
+
+          <div className="mt-2">
+            <h1 className="text-3xl font-black uppercase tracking-tight text-[#17142B] sm:text-4xl lg:text-5xl">
+              {teamName}
+            </h1>
+            <p className="mt-1.5 text-xs font-bold text-slate-600 sm:text-sm">
+              “Your squad. Your skills. Your mission.”
+            </p>
+          </div>
+
+          {/* Prominent Team Specs Bar */}
+          <div className="mt-6 flex flex-wrap items-center gap-2.5 border-t-2 border-[#17142B]/10 pt-4 text-xs font-black uppercase tracking-wider text-slate-700">
+            <span className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-[#17142B] shadow-[1px_1px_0_#17142B]">
+              {team.length} {team.length === 1 ? "BUILDER" : "BUILDERS"}
+            </span>
+            <span className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3.5 py-1.5 text-[#17142B] shadow-[1px_1px_0_#17142B]">
+              {skillCoverage}% SKILL COVERAGE
+            </span>
+            <span className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-[#7046D9] shadow-[1px_1px_0_#17142B]">
+              MISSION: {projectGoal}
+            </span>
+          </div>
         </section>
+
+        {/* Solo Builder Notice if 1 Builder */}
+        {team.length === 1 && (
+          <section className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border-2 border-[#17142B] bg-[#FFF9EF] p-5 shadow-[4px_4px_0_#17142B]">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFD86B] text-2xl shadow-[2px_2px_0_#17142B]">
+                ⚡
+              </div>
+              <div>
+                <p className="text-sm font-black uppercase text-[#17142B]">
+                  You're currently building solo!
+                </p>
+                <p className="text-xs font-bold text-slate-600">
+                  Add teammates whose skills complement yours to unlock stronger collaboration and synergy.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/find-teammates")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            >
+              <UserPlus size={14} />
+              <span>RECRUIT TEAMMATES</span>
+            </button>
+          </section>
+        )}
 
         {/* Project Goal Mission Badge Card */}
         <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B]">
@@ -525,6 +585,12 @@ if (team.length >= 3 && beginnerCount === team.length) {
               <h3 className="text-xl font-black uppercase text-[#17142B]">
                 {teamLead.name}
               </h3>
+
+              {(teamLead.id === "current-user" || teamLead.isCurrentUser) && (
+                <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                  YOU
+                </span>
+              )}
 
               <span className="rounded-md border-2 border-[#17142B] bg-[#BDE7D6] px-2 py-0.5 text-[9px] font-black uppercase shadow-[1px_1px_0_#17142B]">
                 Lead Candidate
@@ -682,7 +748,7 @@ if (team.length >= 3 && beginnerCount === team.length) {
                       <Sparkles size={18} />
                     </div>
                     <h2 className="text-xl font-black uppercase tracking-wide text-[#17142B]">
-                      TEAM POWER METER
+                      {teamName} — TEAM POWER
                     </h2>
                   </div>
                   <p className="mt-2 text-xs font-bold text-slate-500">
@@ -806,7 +872,7 @@ if (team.length >= 3 && beginnerCount === team.length) {
 
         <div>
           <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
-            Team Risk Radar
+            {teamName} — TEAM RISK RADAR
           </h2>
 
           <p className="text-xs font-bold text-slate-500">
@@ -910,71 +976,99 @@ if (team.length >= 3 && beginnerCount === team.length) {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {team.map((member) => (
-              <div
-                key={member.id}
-                className="group flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]"
-              >
-                <div>
-                  {/* Collectible Badge Header */}
-                  <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      MEMBER #{member.id}
-                    </span>
-                    <span className="rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
-                      {member.role?.split(" ")[0]?.toUpperCase() || "CLASS"}
-                    </span>
-                  </div>
+            {team.map((member) => {
+              const isCurrentUser =
+                member.id === "current-user" || Boolean(member.isCurrentUser)
 
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
-                      {member.emoji}
+              return (
+                <div
+                  key={member.id}
+                  className={`group flex flex-col justify-between rounded-2xl border-2 ${
+                    isCurrentUser
+                      ? "border-[#7046D9] ring-2 ring-[#FFD86B]/60 bg-[#FFFDF5]"
+                      : "border-[#17142B] bg-white"
+                  } p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]`}
+                >
+                  <div>
+                    {/* Collectible Badge Header */}
+                    <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {isCurrentUser ? "PLAYER 1" : `MEMBER #${member.id}`}
+                      </span>
+                      {isCurrentUser ? (
+                        <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                          YOU
+                        </span>
+                      ) : (
+                        <span className="rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
+                          {member.role?.split(" ")[0]?.toUpperCase() || "CLASS"}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
-                        {member.name}
-                      </h3>
-                      <p className="text-xs font-black uppercase text-[#7046D9]">
-                        {member.role}
-                      </p>
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                          {member.experience}
-                        </span>
-                        {member.projectGoal && (
-                          <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
-                            {member.projectGoal}
+                    <div className="flex items-start gap-3.5">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
+                        {member.emoji}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
+                            {member.name}
+                          </h3>
+                          {isCurrentUser && (
+                            <span className="rounded border-2 border-[#17142B] bg-[#FFD86B] px-1.5 py-0.2 text-[8px] font-black uppercase text-[#17142B]">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-black uppercase text-[#7046D9]">
+                          {member.role}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                            {member.experience}
                           </span>
-                        )}
+                          {member.projectGoal && (
+                            <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
+                              {member.projectGoal}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Skills Chips */}
+                    <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
+                      {(member.skills || []).map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Skills Chips */}
-                  <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
-                    {(member.skills || []).map((skill) => (
-                      <span
-                        key={skill}
-                        className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
+                  {/* Replace Button: Allowed ONLY for other teammates, NEVER for current user */}
+                  {!isCurrentUser ? (
+                    <button
+                      type="button"
+                      onClick={() => setReplaceMember(member)}
+                      className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFF8E8] hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                    >
+                      <UserPlus size={14} className="text-[#7046D9]" />
+                      <span>REPLACE</span>
+                    </button>
+                  ) : (
+                    <div className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B]/20 bg-[#FFF8E8] py-2 text-[10px] font-black uppercase tracking-wider text-slate-600">
+                      <span>★ SQUAD FOUNDER (YOU)</span>
+                    </div>
+                  )}
                 </div>
-
-                {/* Replace Button */}
-                <button
-                  type="button"
-                  onClick={() => setReplaceMember(member)}
-                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFF8E8] hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-                >
-                  <UserPlus size={14} className="text-[#7046D9]" />
-                  <span>REPLACE</span>
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
 
@@ -982,7 +1076,7 @@ if (team.length >= 3 && beginnerCount === team.length) {
         <section className="mb-10">
           <div className="mb-5 border-b-2 border-[#17142B]/10 pb-3">
             <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
-              Skill Breakdown
+              {teamName} — SKILL BREAKDOWN
             </h2>
             <p className="text-xs font-bold text-slate-500">
               Unlocked superpowers vs. missing abilities
@@ -1161,7 +1255,7 @@ if (team.length >= 3 && beginnerCount === team.length) {
             </div>
             <div>
               <h2 className="text-xl font-black uppercase text-[#17142B]">
-                TEAM LOADOUT
+                {teamName} — TEAM LOADOUT
               </h2>
               <p className="text-xs font-bold text-slate-500">
                 Functional role classes currently active in your squad

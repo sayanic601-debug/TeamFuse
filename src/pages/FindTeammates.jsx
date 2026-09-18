@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArrowLeft,
   Search,
@@ -81,135 +81,204 @@ function FindTeammates() {
 
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("All")
-  const [selectedUsers, setSelectedUsers] = useState([])
 
   const profile = JSON.parse(
-    localStorage.getItem("teamfuseProfile")
+    localStorage.getItem("teamfuseProfile") || "null"
   )
 
-  // Calculate compatibility score
-  const calculateMatch = useCallback((user) => {
-    if (!profile) return 75
-
-    const lookingFor = profile.lookingFor || []
-
-    // 1. Skill Score - 60 points
-    const matchedSkills = user.skills.filter((skill) =>
-      lookingFor.includes(skill)
-    )
-
-    const skillScore =
-      lookingFor.length > 0
-        ? (matchedSkills.length / lookingFor.length) * 60
-        : 45
-
-    // 2. Experience Score - 10 points
-    const experienceScore =
-      profile.experience === user.experience ? 10 : 5
-
-    // 3. Role Compatibility - 20 points
-    let roleScore = 0
-
-    if (
-      profile.role === "Frontend Developer" &&
-      user.role === "Backend Developer"
-    ) {
-      roleScore = 20
-    } else if (
-      profile.role === "Backend Developer" &&
-      user.role === "Frontend Developer"
-    ) {
-      roleScore = 20
-    } else if (
-      profile.role === "UI/UX Designer" &&
-      user.role !== "UI/UX Designer"
-    ) {
-      roleScore = 20
-    } else if (
-      profile.role === "ML Engineer" &&
-      user.role !== "ML Engineer"
-    ) {
-      roleScore = 20
-    } else if (
-      profile.role &&
-      user.role !== profile.role
-    ) {
-      roleScore = 10
+  // Current user representation with stable ID
+  const currentUser = useMemo(() => {
+    if (!profile) return null
+    return {
+      ...profile,
+      id: "current-user",
+      isCurrentUser: true,
+      emoji: profile.emoji || "👩🏻‍💻",
+      color: profile.color || "bg-[#FFD86B]",
     }
-
-    // 4. Project Goal - 10 points
-    const projectGoalScore =
-      profile.projectGoal &&
-      profile.projectGoal === user.projectGoal
-        ? 10
-        : 0
-
-    // Final Score
-    return Math.min(
-      100,
-      Math.round(
-        skillScore +
-        roleScore +
-        experienceScore +
-        projectGoalScore
-      )
-    )
   }, [profile])
 
-  // Get skills that match user's requirement
-  const getMatchedSkills = (user) => {
-    const lookingFor = profile?.lookingFor || []
+  // Initialize selected allies (excluding current user) from localStorage
+  const [selectedUsers, setSelectedUsers] = useState(() => {
+    try {
+      const savedTeam = JSON.parse(localStorage.getItem("teamfuseTeam") || "[]")
+      return Array.isArray(savedTeam)
+        ? savedTeam
+            .filter((m) => m.id !== "current-user")
+            .map((m) => m.id)
+        : []
+    } catch {
+      return []
+    }
+  })
 
-    return user.skills.filter((skill) =>
-      lookingFor.includes(skill)
-    )
-  }
+  // Full squad: currentUser is ALWAYS the first team member
+  const currentSquad = useMemo(() => {
+    const recruited = demoUsers.filter((u) => selectedUsers.includes(u.id))
+    return currentUser ? [currentUser, ...recruited] : recruited
+  }, [currentUser, selectedUsers])
+
+  // Automatically ensure currentUser is in teamfuseTeam
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        const savedTeam = JSON.parse(
+          localStorage.getItem("teamfuseTeam") || "[]"
+        )
+        const otherMembers = Array.isArray(savedTeam)
+          ? savedTeam.filter((m) => m.id !== "current-user")
+          : []
+        localStorage.setItem(
+          "teamfuseTeam",
+          JSON.stringify([currentUser, ...otherMembers])
+        )
+      } catch {
+        localStorage.setItem("teamfuseTeam", JSON.stringify([currentUser]))
+      }
+    }
+  }, [currentUser])
+
+  // All core abilities & what squad already possesses
+  const allSkills = useMemo(
+    () => [
+      "React",
+      "Node.js",
+      "MongoDB",
+      "Python",
+      "Machine Learning",
+      "UI/UX",
+      "Figma",
+    ],
+    []
+  )
+
+  const squadSkills = useMemo(() => {
+    return [...new Set(currentSquad.flatMap((m) => m.skills || []))]
+  }, [currentSquad])
+
+  // Complementary abilities missing from current squad
+  const neededSkills = useMemo(() => {
+    return allSkills.filter((skill) => !squadSkills.includes(skill))
+  }, [allSkills, squadSkills])
+
+  // Team name state and modal management
+  const [teamName, setTeamName] = useState(() => {
+    return localStorage.getItem("teamfuseTeamName") || ""
+  })
+  const [isNamingModalOpen, setIsNamingModalOpen] = useState(false)
+  const [teamNameError, setTeamNameError] = useState("")
+
+  // Identify skills candidate brings that fill squad's missing skills
+  const getGapSkills = useCallback(
+    (user) => {
+      return (user.skills || []).filter(
+        (skill) =>
+          neededSkills.includes(skill) ||
+          (profile?.lookingFor || []).includes(skill)
+      )
+    },
+    [neededSkills, profile]
+  )
+
+  // Identify skills candidate has that squad does not have
+  const getNewSkills = useCallback(
+    (user) => {
+      return (user.skills || []).filter((skill) => !squadSkills.includes(skill))
+    },
+    [squadSkills]
+  )
+
+  // Calculate compatibility score with transparent scoring
+  const calculateMatch = useCallback(
+    (user) => {
+      if (!profile) return 75
+
+      let score = 35 // Base score
+
+      // 1. If candidate brings skills the squad doesn't have: +10
+      const newSkills = getNewSkills(user)
+      if (newSkills.length > 0) {
+        score += 10
+      }
+
+      // 2. If candidate fills missing squad skills: +20
+      const gapSkills = getGapSkills(user)
+      if (gapSkills.length > 0) {
+        score += 20
+      }
+
+      // 3. Same project goal: +15
+      if (profile.projectGoal && profile.projectGoal === user.projectGoal) {
+        score += 15
+      }
+
+      // 4. Complementary role: +15
+      if (profile.role && user.role !== profile.role) {
+        score += 15
+      }
+
+      // 5. Useful experience: +5
+      if (
+        user.experience === "Advanced" ||
+        (profile.experience && user.experience === profile.experience)
+      ) {
+        score += 5
+      }
+
+      return Math.min(100, score)
+    },
+    [profile, getNewSkills, getGapSkills]
+  )
+
+  // Get skills that match user's requirement
+  const getMatchedSkills = useCallback(
+    (user) => {
+      return (user.skills || []).filter(
+        (skill) =>
+          neededSkills.includes(skill) ||
+          (profile?.lookingFor || []).includes(skill)
+      )
+    },
+    [neededSkills, profile]
+  )
 
   // Explain why this teammate is a match
-  const getMatchReason = (user) => {
-    const matchedSkills = getMatchedSkills(user)
-    const reasons = []
+  const getMatchReason = useCallback(
+    (user) => {
+      const gapSkills = getGapSkills(user)
+      const newSkills = getNewSkills(user)
+      const reasons = []
 
-    if (matchedSkills.length > 0) {
-      reasons.push(
-        `${matchedSkills.length} matching skill${
-          matchedSkills.length > 1 ? "s" : ""
-        }`
-      )
-    }
+      if (gapSkills.length > 0) {
+        reasons.push(
+          `Fills ${gapSkills.length} skill gap${gapSkills.length > 1 ? "s" : ""} (${gapSkills.slice(0, 2).join(", ")})`
+        )
+      } else if (newSkills.length > 0) {
+        reasons.push(`Brings ${newSkills.slice(0, 2).join(", ")}`)
+      }
 
-    if (
-      profile?.experience &&
-      profile.experience === user.experience
-    ) {
-      reasons.push("Same experience level")
-    }
+      if (profile?.projectGoal && profile.projectGoal === user.projectGoal) {
+        reasons.push(`Aligned mission: ${user.projectGoal}`)
+      }
 
-    if (
-      profile?.projectGoal &&
-      profile.projectGoal === user.projectGoal
-    ) {
-      reasons.push("Same project goal")
-    }
+      if (profile?.role && user.role !== profile.role) {
+        reasons.push("Complementary role")
+      }
 
-    if (
-      profile?.role &&
-      user.role !== profile.role
-    ) {
-      reasons.push("Complementary role")
-    }
+      if (reasons.length === 0) {
+        reasons.push("Potential teammate match")
+      }
 
-    if (reasons.length === 0) {
-      reasons.push("Potential teammate match")
-    }
+      return reasons
+    },
+    [getGapSkills, getNewSkills, profile]
+  )
 
-    return reasons
-  }
-
-  // Search + filter + sort
+  // Search + filter + sort candidates (strictly exclude current user)
   const filteredUsers = useMemo(() => {
     return demoUsers
       .filter((user) => {
+        if (currentUser && user.id === currentUser.id) return false
         const searchText = search.toLowerCase()
 
         const matchesSearch =
@@ -219,16 +288,12 @@ function FindTeammates() {
           )
 
         const matchesRole =
-          roleFilter === "All" ||
-          user.role.includes(roleFilter)
+          roleFilter === "All" || user.role.includes(roleFilter)
 
         return matchesSearch && matchesRole
       })
-      .sort(
-        (a, b) =>
-          calculateMatch(b) - calculateMatch(a)
-      )
-  }, [search, roleFilter, calculateMatch])
+      .sort((a, b) => calculateMatch(b) - calculateMatch(a))
+  }, [search, roleFilter, calculateMatch, currentUser])
 
   // Add/remove teammate
   const toggleUser = (id) => {
@@ -239,21 +304,23 @@ function FindTeammates() {
     )
   }
 
-  // Build team
-  const buildTeam = () => {
-    if (selectedUsers.length === 0) {
-      alert("Add at least one teammate first! 👥")
+  // Final build team action after naming squad
+  const handleBuildTeam = () => {
+    const trimmed = teamName.trim()
+    if (!trimmed) {
+      setTeamNameError(
+        "Team name cannot be empty. Every great team needs a name."
+      )
+      return
+    }
+    if (trimmed.length > 30) {
+      setTeamNameError("Team name must be 30 characters or less.")
       return
     }
 
-    const selected = demoUsers.filter((user) =>
-      selectedUsers.includes(user.id)
-    )
-
-    localStorage.setItem(
-      "teamfuseTeam",
-      JSON.stringify(selected)
-    )
+    // Save full squad with currentUser as member #1
+    localStorage.setItem("teamfuseTeam", JSON.stringify(currentSquad))
+    localStorage.setItem("teamfuseTeamName", trimmed)
 
     navigate("/team-analysis")
   }
@@ -298,7 +365,134 @@ function FindTeammates() {
 
             <div className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
               <Flame size={13} className="text-amber-700" />
-              {selectedUsers.length} ALLIES RECRUITED
+              {currentSquad.length} {currentSquad.length === 1 ? "BUILDER IN SQUAD" : "BUILDERS IN SQUAD"}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== PROMINENT SQUAD PREVIEW SECTION ==================== */}
+        <section className="mb-8 rounded-3xl border-2 border-[#17142B] bg-white p-6 shadow-[5px_5px_0_#17142B]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#17142B]/10 pb-4">
+            <div>
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                <Users size={12} />
+                ACTIVE SQUAD ROSTER · {currentSquad.length} {currentSquad.length === 1 ? "BUILDER" : "BUILDERS"}
+              </div>
+              <h2 className="text-xl font-black uppercase tracking-tight text-[#17142B] sm:text-2xl">
+                Your Squad
+              </h2>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3.5 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+              <Sparkles size={13} fill="currentColor" />
+              YOU ARE IN THE SQUAD
+            </div>
+          </div>
+
+          {/* Squad Member Cards Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {currentSquad.map((member) => {
+              const isUser = member.id === "current-user" || member.isCurrentUser
+              return (
+                <div
+                  key={member.id}
+                  className={`relative flex flex-col justify-between rounded-2xl border-2 border-[#17142B] p-4 shadow-[3px_3px_0_#17142B] transition ${
+                    isUser
+                      ? "bg-[#FFF8E8] ring-2 ring-[#7046D9]"
+                      : "bg-white"
+                  }`}
+                >
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      {isUser ? (
+                        <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                          YOU
+                        </span>
+                      ) : (
+                        <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-700">
+                          ALLY
+                        </span>
+                      )}
+
+                      {!isUser && (
+                        <button
+                          type="button"
+                          onClick={() => toggleUser(member.id)}
+                          aria-label={`Remove ${member.name} from squad`}
+                          className="rounded-md border border-[#17142B] bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-[#FFD6CE] hover:text-red-700"
+                        >
+                          × Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-2xl shadow-[1px_1px_0_#17142B]">
+                        {member.emoji}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-black uppercase text-[#17142B]">
+                          {member.name}
+                        </h3>
+                        <p className="truncate text-[11px] font-black uppercase text-[#7046D9]">
+                          {member.role}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Skills Chips */}
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {(member.skills || []).map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-md border border-[#17142B]/30 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-700"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* WHAT DOES YOUR SQUAD NEED? Panel */}
+          <div className="mt-6 rounded-2xl border-2 border-[#17142B] bg-[#FFF8E8] p-4 shadow-[2px_2px_0_#17142B]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md border border-[#17142B] bg-[#F7A6C7] text-[#17142B]">
+                    <Target size={13} />
+                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-wide text-[#17142B]">
+                    WHAT DOES YOUR SQUAD NEED?
+                  </h3>
+                </div>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-600">
+                  {neededSkills.length > 0
+                    ? "Target these complementary abilities from candidates below to maximize squad synergy:"
+                    : "Your squad has full 100% skill coverage! Fantastic job assembling!"}
+                </p>
+              </div>
+
+              {neededSkills.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {neededSkills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1 rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]"
+                    >
+                      <span>+</span>
+                      <span>{skill}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="rounded-md border-2 border-[#17142B] bg-[#BDE7D6] px-2.5 py-1 text-[10px] font-black uppercase text-[#17142B]">
+                  ✓ FULL COVERAGE
+                </span>
+              )}
             </div>
           </div>
         </section>
@@ -380,6 +574,7 @@ function FindTeammates() {
             const match = calculateMatch(user)
             const selected = selectedUsers.includes(user.id)
             const matchedSkills = getMatchedSkills(user)
+            const gapSkills = getGapSkills(user)
             const reasons = getMatchReason(user)
 
             return (
@@ -467,6 +662,14 @@ function FindTeammates() {
                     </div>
                   </div>
 
+                  {/* Fills Skill Gap Callout Badge */}
+                  {gapSkills.length > 0 && (
+                    <div className="mt-3 flex items-center gap-1.5 rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] px-2.5 py-1 text-xs font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                      <Sparkles size={12} className="text-[#17142B]" />
+                      <span>✦ Fills {gapSkills.length} skill gap{gapSkills.length > 1 ? "s" : ""}</span>
+                    </div>
+                  )}
+
                   {/* Why this match callout */}
                   <div className="mt-3.5 rounded-xl border-2 border-[#17142B] bg-[#DCCFFF]/40 p-3 shadow-[1px_1px_0_#17142B]">
                     <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#17142B]">
@@ -499,12 +702,12 @@ function FindTeammates() {
                   {selected ? (
                     <>
                       <Check size={16} />
-                      IN SQUAD
+                      ✓ ADDED TO SQUAD
                     </>
                   ) : (
                     <>
                       <UserPlus size={16} />
-                      + ADD TO TEAM
+                      + ADD TO SQUAD
                     </>
                   )}
                 </button>
@@ -538,30 +741,187 @@ function FindTeammates() {
         )}
       </div>
 
-      {/* Floating Bottom Squad Bar */}
-      {selectedUsers.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border-2 border-[#17142B] bg-white p-3.5 shadow-[5px_5px_0_#17142B]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[2px_2px_0_#17142B]">
-              <Users size={18} />
+      {/* Persistent Squad Selection & Preview Dock */}
+      <aside
+        aria-label="Squad Selection Preview"
+        className="fixed bottom-5 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 items-center justify-between gap-4 rounded-3xl border-2 border-[#17142B] bg-white p-4 shadow-[6px_6px_0_#17142B] transition-all"
+      >
+        <div className="flex w-full flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex -space-x-2 overflow-hidden py-1">
+              {currentSquad.map((m) => {
+                const isUser = m.id === "current-user" || m.isCurrentUser
+                return (
+                  <div
+                    key={m.id}
+                    title={`${m.name}${isUser ? " (YOU)" : ""}`}
+                    className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl border-2 border-[#17142B] text-lg sm:text-xl shadow-[2px_2px_0_#17142B] ${
+                      isUser ? "bg-[#FFD86B]" : "bg-[#FFF8E8]"
+                    }`}
+                  >
+                    {m.emoji}
+                  </div>
+                )
+              })}
             </div>
             <div>
-              <p className="text-base font-black uppercase text-[#17142B] leading-none">
-                {selectedUsers.length} Teammate{selectedUsers.length > 1 ? "s" : ""} Recruited
+              <p className="text-xs sm:text-sm font-black uppercase text-[#17142B]">
+                YOUR SQUAD — {currentSquad.length}{" "}
+                {currentSquad.length === 1 ? "BUILDER" : "BUILDERS"}
               </p>
-              <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                Ready to fuse into your comic scoreboard
+              <p className="text-[11px] font-bold text-slate-500">
+                {currentSquad.length === 1
+                  ? "Solo builder (YOU) · Add allies above"
+                  : `${currentSquad.length} builders ready to fuse`}
               </p>
             </div>
           </div>
 
           <button
-            onClick={buildTeam}
-            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            onClick={() => {
+              setTeamNameError("")
+              setIsNamingModalOpen(true)
+            }}
+            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] px-5 py-2.5 sm:py-3 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#ffe28a] hover:shadow-[4px_4px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
           >
-            Build Team
+            <span>NAME YOUR SQUAD</span>
             <ArrowRight size={14} />
           </button>
+        </div>
+      </aside>
+
+      {/* Name Your Squad Modal */}
+      {isNamingModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#17142B]/80 p-4 backdrop-blur-xs"
+          onClick={() => setIsNamingModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="name-squad-title"
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] shadow-[8px_8px_0_#17142B]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between rounded-t-[22px] border-b-2 border-[#17142B] bg-white px-6 py-5">
+              <div>
+                <div className="mb-1">
+                  <span className="inline-block rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                    STEP 03 · NAME YOUR SQUAD
+                  </span>
+                </div>
+                <h2
+                  id="name-squad-title"
+                  className="text-2xl font-black uppercase tracking-tight text-[#17142B]"
+                >
+                  NAME YOUR SQUAD
+                </h2>
+                <p className="text-xs font-bold text-slate-600">
+                  Every great team needs a name.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsNamingModalOpen(false)}
+                aria-label="Close modal"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-lg font-black text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFD6CE] hover:shadow-[3px_3px_0_#17142B]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Confirmed Roster Snapshot */}
+              <div className="mb-5 rounded-2xl border-2 border-[#17142B] bg-white p-4 shadow-[2px_2px_0_#17142B]">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  CONFIRMED ROSTER ({currentSquad.length} BUILDERS)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {currentSquad.map((m) => {
+                    const isUser = m.id === "current-user" || m.isCurrentUser
+                    return (
+                      <span
+                        key={m.id}
+                        className={`inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] px-2.5 py-1 text-xs font-black text-[#17142B] shadow-[1px_1px_0_#17142B] ${
+                          isUser ? "bg-[#FFD86B]" : "bg-[#FFF8E8]"
+                        }`}
+                      >
+                        <span>{m.emoji}</span>
+                        <span>{m.name}</span>
+                        {isUser && (
+                          <span className="rounded bg-[#17142B] px-1 py-0.2 text-[8px] font-black text-white">
+                            YOU
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-[#7046D9]">
+                          • {m.role}
+                        </span>
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Form Input */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleBuildTeam()
+                }}
+              >
+                <label
+                  htmlFor="squad-name-input"
+                  className="mb-1.5 block text-xs font-black uppercase tracking-wider text-[#17142B]"
+                >
+                  Enter your team name…
+                </label>
+                <div className="relative">
+                  <input
+                    id="squad-name-input"
+                    type="text"
+                    maxLength={30}
+                    value={teamName}
+                    onChange={(e) => {
+                      setTeamName(e.target.value)
+                      if (teamNameError) setTeamNameError("")
+                    }}
+                    placeholder="e.g. Code Titans"
+                    autoFocus
+                    className="w-full rounded-2xl border-2 border-[#17142B] bg-white px-4 py-3 text-sm font-black text-[#17142B] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7046D9]"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
+                    {teamName.length}/30
+                  </span>
+                </div>
+
+                {teamNameError && (
+                  <p className="mt-2 text-xs font-bold text-red-600">
+                    {teamNameError}
+                  </p>
+                )}
+
+                <div className="mt-6 flex flex-col gap-2">
+                  <button
+                    type="submit"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] py-3.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#ffe28a] hover:shadow-[5px_5px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                  >
+                    <span>BUILD MY SQUAD</span>
+                    <ArrowRight size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsNamingModalOpen(false)}
+                    className="py-2 text-xs font-black uppercase text-slate-500 hover:text-slate-800"
+                  >
+                    Keep Scouting
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </div>

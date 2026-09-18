@@ -52,19 +52,54 @@ function CreateProfile() {
   const handleSubmit = (e) => {
     e.preventDefault()
 
+    const roleEmojis = {
+      "Frontend Developer": "👩🏻‍💻",
+      "Backend Developer": "👨🏻‍💻",
+      "ML Engineer": "👩🏻‍🔬",
+      "UI/UX Designer": "👩🏻‍🎨",
+      "Full Stack Developer": "👨🏻‍💻",
+      "Other": "⚡",
+    }
+
+    const roleVal = e.target.role.value
+    const userEmoji = roleEmojis[roleVal] || "👤"
+
     const profile = {
-      name: e.target.name.value,
-      role: e.target.role.value,
+      id: "current-user",
+      name: e.target.name.value.trim() || "Builder",
+      role: roleVal,
       experience: e.target.experience.value,
       projectGoal: e.target.projectGoal.value,
       skills: selectedSkills,
       lookingFor,
+      emoji: userEmoji,
+      isCurrentUser: true,
+      color: "bg-[#FFD86B]",
     }
 
     localStorage.setItem(
       "teamfuseProfile",
       JSON.stringify(profile)
     )
+
+    // User automatically becomes member #1 in teamfuseTeam
+    try {
+      const existingTeam = JSON.parse(
+        localStorage.getItem("teamfuseTeam") || "[]"
+      )
+      const otherMembers = Array.isArray(existingTeam)
+        ? existingTeam.filter((m) => m.id !== "current-user")
+        : []
+      localStorage.setItem(
+        "teamfuseTeam",
+        JSON.stringify([profile, ...otherMembers])
+      )
+    } catch {
+      localStorage.setItem(
+        "teamfuseTeam",
+        JSON.stringify([profile])
+      )
+    }
 
     navigate("/find-teammates")
   }
