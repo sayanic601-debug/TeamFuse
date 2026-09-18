@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   ArrowLeft,
   Check,
@@ -12,6 +13,7 @@ import {
   ArrowRight,
   Flame,
   Star,
+  X,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
@@ -130,6 +132,9 @@ function TeamAnalysis() {
     team.length > 0
       ? Math.round((sameGoalMembers.length / team.length) * 100)
       : 0
+
+  // Replace Teammate State
+  const [replaceMember, setReplaceMember] = useState(null)
 
       // Suggested Team Lead
 const getExperienceScore = (experience) => {
@@ -318,6 +323,39 @@ if (team.length >= 3 && beginnerCount === team.length) {
   const handleAddCandidate = (candidate) => {
     const updatedTeam = [...team, candidate]
     localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
+    window.location.reload()
+  }
+
+  // Replace Teammate logic and prioritized candidates
+  const prioritizedCandidates = availableCandidates
+    .map((candidate) => {
+      const gapSkills = (candidate.skills || []).filter((skill) =>
+        missingSkills.includes(skill)
+      )
+      let score = 0
+      score += gapSkills.length * 20
+      if (candidate.projectGoal === projectGoal) {
+        score += 15
+      }
+      if (candidate.experience === "Advanced") {
+        score += 10
+      } else if (candidate.experience === "Intermediate") {
+        score += 5
+      }
+      if (replaceMember && candidate.role === replaceMember.role) {
+        score += 10
+      }
+      return { ...candidate, gapSkills, replacementScore: score }
+    })
+    .sort((a, b) => b.replacementScore - a.replacementScore)
+
+  const handleReplaceMember = (oldMember, newMember) => {
+    const updatedTeam = team.map((member) =>
+      member.id === oldMember.id ? newMember : member
+    )
+
+    localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
+    setReplaceMember(null)
     window.location.reload()
   }
 
@@ -875,54 +913,66 @@ if (team.length >= 3 && beginnerCount === team.length) {
             {team.map((member) => (
               <div
                 key={member.id}
-                className="group rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]"
+                className="group flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]"
               >
-                {/* Collectible Badge Header */}
-                <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    MEMBER #{member.id}
-                  </span>
-                  <span className="rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
-                    {member.role?.split(" ")[0]?.toUpperCase() || "CLASS"}
-                  </span>
-                </div>
-
-                <div className="flex items-start gap-3.5">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
-                    {member.emoji}
+                <div>
+                  {/* Collectible Badge Header */}
+                  <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      MEMBER #{member.id}
+                    </span>
+                    <span className="rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
+                      {member.role?.split(" ")[0]?.toUpperCase() || "CLASS"}
+                    </span>
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
-                      {member.name}
-                    </h3>
-                    <p className="text-xs font-black uppercase text-[#7046D9]">
-                      {member.role}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                        {member.experience}
-                      </span>
-                      {member.projectGoal && (
-                        <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
-                          {member.projectGoal}
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
+                      {member.emoji}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
+                        {member.name}
+                      </h3>
+                      <p className="text-xs font-black uppercase text-[#7046D9]">
+                        {member.role}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                          {member.experience}
                         </span>
-                      )}
+                        {member.projectGoal && (
+                          <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
+                            {member.projectGoal}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Skills Chips */}
+                  <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
+                    {(member.skills || []).map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Skills Chips */}
-                <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
-                  {(member.skills || []).map((skill) => (
-                    <span
-                      key={skill}
-                      className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
+                {/* Replace Button */}
+                <button
+                  type="button"
+                  onClick={() => setReplaceMember(member)}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFF8E8] hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                >
+                  <UserPlus size={14} className="text-[#7046D9]" />
+                  <span>REPLACE</span>
+                </button>
               </div>
             ))}
           </div>
@@ -1198,6 +1248,139 @@ if (team.length >= 3 && beginnerCount === team.length) {
             ← Add More Teammates
           </button>
         </div>
+
+        {/* Replacement Modal Overlay */}
+        {replaceMember && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#17142B]/80 p-4 backdrop-blur-xs"
+            onClick={() => setReplaceMember(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-headline"
+          >
+            <div
+              className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] shadow-[8px_8px_0_#17142B] transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-start justify-between rounded-t-[22px] border-b-2 border-[#17142B] bg-white px-6 py-5">
+                <div>
+                  <div className="mb-1">
+                    <span className="inline-block rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                      REPLACE TEAMMATE
+                    </span>
+                  </div>
+                  <h2
+                    id="modal-headline"
+                    className="text-2xl font-black uppercase tracking-tight text-[#17142B]"
+                  >
+                    Find a Better Fit
+                  </h2>
+                  <p className="text-xs font-bold text-slate-600">
+                    Replace <span className="font-black text-[#7046D9]">{replaceMember.name}</span> with another teammate.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setReplaceMember(null)}
+                  aria-label="Close modal"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-lg font-black text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFD6CE] hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Body / Candidate List */}
+              <div className="overflow-y-auto p-6">
+                {prioritizedCandidates.length === 0 ? (
+                  /* Empty State */
+                  <div className="rounded-2xl border-2 border-dashed border-[#17142B]/30 bg-white/70 p-8 text-center">
+                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#FFF8E8] text-2xl shadow-[3px_3px_0_#17142B]">
+                      👥
+                    </div>
+                    <h3 className="text-base font-black uppercase text-[#17142B]">
+                      No replacement candidates available.
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      All available teammates are already part of your squad.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {prioritizedCandidates.map((candidate) => {
+                      const gapSkills = candidate.gapSkills || []
+                      return (
+                        <div
+                          key={candidate.id}
+                          className="flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-4 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#17142B]"
+                        >
+                          <div>
+                            {/* Candidate Header */}
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-2xl shadow-[2px_2px_0_#17142B]">
+                                {candidate.emoji}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="truncate text-base font-black uppercase text-[#17142B]">
+                                  {candidate.name}
+                                </h4>
+                                <p className="text-xs font-black uppercase text-[#7046D9]">
+                                  {candidate.role}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                  <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                                    {candidate.experience}
+                                  </span>
+                                  {candidate.projectGoal && (
+                                    <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
+                                      {candidate.projectGoal}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Skills that fill the team's missing skill gaps */}
+                            {gapSkills.length > 0 && (
+                              <div className="mt-3.5 border-t-2 border-[#17142B]/10 pt-2.5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-[#7046D9]">
+                                  FILLS SKILL GAP
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {gapSkills.map((skill) => (
+                                    <span
+                                      key={skill}
+                                      className="rounded-md border-2 border-[#17142B] bg-[#BDE7D6] px-2 py-0.5 text-[10px] font-black text-[#17142B] shadow-[1px_1px_0_#17142B]"
+                                    >
+                                      {skill}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Replace Action Button */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleReplaceMember(replaceMember, candidate)
+                            }
+                            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] py-2.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#ffe28a] hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                          >
+                            <ArrowRight size={14} />
+                            <span>REPLACE WITH {candidate.name.toUpperCase()}</span>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
