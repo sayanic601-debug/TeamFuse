@@ -7,6 +7,9 @@ import {
   UserPlus,
   Sparkles,
   Target,
+  X,
+  ArrowRight,
+  Flame,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
@@ -90,10 +93,7 @@ function FindTeammates() {
 
     const lookingFor = profile.lookingFor || []
 
-    // -----------------------------
     // 1. Skill Score - 60 points
-    // -----------------------------
-
     const matchedSkills = user.skills.filter((skill) =>
       lookingFor.includes(skill)
     )
@@ -103,17 +103,11 @@ function FindTeammates() {
         ? (matchedSkills.length / lookingFor.length) * 60
         : 45
 
-    // -----------------------------
     // 2. Experience Score - 10 points
-    // -----------------------------
-
     const experienceScore =
       profile.experience === user.experience ? 10 : 5
 
-    // -----------------------------
     // 3. Role Compatibility - 20 points
-    // -----------------------------
-
     let roleScore = 0
 
     if (
@@ -143,20 +137,14 @@ function FindTeammates() {
       roleScore = 10
     }
 
-    // -----------------------------
     // 4. Project Goal - 10 points
-    // -----------------------------
-
     const projectGoalScore =
       profile.projectGoal &&
       profile.projectGoal === user.projectGoal
         ? 10
         : 0
 
-    // -----------------------------
     // Final Score
-    // -----------------------------
-
     return Math.min(
       100,
       Math.round(
@@ -180,10 +168,8 @@ function FindTeammates() {
   // Explain why this teammate is a match
   const getMatchReason = (user) => {
     const matchedSkills = getMatchedSkills(user)
-
     const reasons = []
 
-    // Matching skills
     if (matchedSkills.length > 0) {
       reasons.push(
         `${matchedSkills.length} matching skill${
@@ -192,7 +178,6 @@ function FindTeammates() {
       )
     }
 
-    // Same experience
     if (
       profile?.experience &&
       profile.experience === user.experience
@@ -200,7 +185,6 @@ function FindTeammates() {
       reasons.push("Same experience level")
     }
 
-    // Same project goal
     if (
       profile?.projectGoal &&
       profile.projectGoal === user.projectGoal
@@ -208,7 +192,6 @@ function FindTeammates() {
       reasons.push("Same project goal")
     }
 
-    // Complementary role
     if (
       profile?.role &&
       user.role !== profile.role
@@ -216,7 +199,6 @@ function FindTeammates() {
       reasons.push("Complementary role")
     }
 
-    // Fallback
     if (reasons.length === 0) {
       reasons.push("Potential teammate match")
     }
@@ -277,152 +259,124 @@ function FindTeammates() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF9EF] px-5 py-8 pb-32 text-[#17142B]">
-
+    <div className="min-h-screen bg-[#FFF8E8] px-5 py-8 pb-32 text-[#17142B] selection:bg-[#FFD86B] selection:text-[#17142B]">
       <div className="mx-auto max-w-6xl">
-
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-
+        {/* Header Navigation & Comic Step */}
+        <header className="mb-8 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-4">
           <button
             onClick={() => navigate("/create-profile")}
-            className="flex items-center gap-2 font-black transition hover:-translate-x-1"
+            className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:text-[#7046D9]"
           >
-            <ArrowLeft size={20} />
-            Back
+            <ArrowLeft size={16} />
+            Back to Profile
           </button>
 
-          <div className="flex items-center gap-2 rounded-full border-2 border-[#17142B] bg-[#FFD86B] px-4 py-2 font-black shadow-[4px_4px_0_#17142B]">
-            <Users size={18} />
-            Find Teammates
+          <div className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#17142B] bg-[#FFD86B] px-3.5 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
+            <Users size={13} fill="currentColor" />
+            STEP 02 · RECRUITMENT WALL
+          </div>
+        </header>
+
+        {/* Hero: Recruitment Wall */}
+        <section className="relative mb-8">
+          <div className="pointer-events-none absolute -left-6 -top-6 h-28 w-28 bg-halftone-subtle opacity-60" />
+
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#F7A6C7] px-3 py-0.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+            <Sparkles size={13} />
+            SCOUTING WALL
           </div>
 
-        </div>
-
-        {/* Title */}
-        <div className="mb-8">
-
-          <div className="mb-3 inline-block rotate-2 rounded-full border-2 border-[#17142B] bg-[#BDE7D6] px-4 py-2 font-black shadow-[4px_4px_0_#17142B]">
-            STEP 02
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-
-            <h1 className="text-4xl font-black md:text-5xl">
-              Build Your Dream Team 💥
-            </h1>
-
-            <div className="rotate-3 rounded-xl border-2 border-[#17142B] bg-[#F7A6C7] px-3 py-2 text-xs font-black shadow-[3px_3px_0_#17142B]">
-              MATCH. FUSE. BUILD.
-            </div>
-
-          </div>
-
-          <p className="mt-3 max-w-2xl text-lg font-bold text-[#17142B]/70">
-            Find people whose skills complete yours.
-          </p>
-
-        </div>
-
-        {/* Search + Filter */}
-        <div className="mb-8 rounded-3xl border-4 border-[#17142B] bg-white p-5 shadow-[7px_7px_0_#17142B]">
-
-          <div className="mb-4 flex items-center gap-2">
-
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#DCCFFF]">
-              <Target size={18} />
-            </div>
-
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="font-black">
-                Find Your Match
-              </p>
-
-              <p className="text-xs font-bold opacity-60">
-                Search and filter potential teammates
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[#17142B] sm:text-4xl lg:text-5xl">
+                Find Your Squad
+              </h1>
+              <p className="mt-2 text-sm font-bold text-slate-600">
+                Collectible builder cards ranked by automated skill & goal compatibility.
               </p>
             </div>
 
+            <div className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+              <Flame size={13} className="text-amber-700" />
+              {selectedUsers.length} ALLIES RECRUITED
+            </div>
+          </div>
+        </section>
+
+        {/* Search + Filter Panel */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B]">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+              <Target size={14} />
+            </div>
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-wider text-[#17142B]">
+                Filter Scouting Wall
+              </h2>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 md:flex-row">
-
-            {/* Search */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {/* Search Input */}
             <div className="relative flex-1">
-
               <Search
-                size={21}
-                className="absolute left-4 top-1/2 -translate-y-1/2"
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
               />
-
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or skill..."
-                className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] py-3 pl-12 pr-4 font-bold outline-none transition focus:ring-4 focus:ring-[#DCCFFF]"
+                placeholder="Search candidates by name or skill (e.g. React, Python)..."
+                className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] py-2.5 pl-10 pr-10 text-xs font-bold text-[#17142B] outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
               />
-
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
+                  aria-label="Clear search"
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
 
-            {/* Role Filter */}
+            {/* Role Filter Select */}
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] px-4 py-3 font-black outline-none"
+              className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-2.5 text-xs font-black uppercase text-[#17142B] outline-none transition focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
             >
-              <option value="All">
-                All Roles
-              </option>
-
-              <option value="Frontend">
-                Frontend
-              </option>
-
-              <option value="Backend">
-                Backend
-              </option>
-
-              <option value="ML">
-                ML
-              </option>
-
-              <option value="UI/UX">
-                UI/UX
-              </option>
-
-              <option value="Full Stack">
-                Full Stack
-              </option>
+              <option value="All">All Role Classes</option>
+              <option value="Frontend">Frontend Developers</option>
+              <option value="Backend">Backend Developers</option>
+              <option value="ML">ML Engineers</option>
+              <option value="UI/UX">UI/UX Designers</option>
+              <option value="Full Stack">Full Stack Developers</option>
             </select>
-
           </div>
 
-          {/* Result Count */}
-          <div className="mt-4 flex items-center justify-between">
-
-            <p className="text-sm font-black opacity-60">
-              {filteredUsers.length} teammate
-              {filteredUsers.length !== 1 ? "s" : ""} found
-            </p>
-
-            {search && (
+          {/* Result Count and Quick Reset */}
+          <div className="mt-3 flex items-center justify-between text-[11px] font-black uppercase tracking-wider text-slate-500">
+            <span>
+              {filteredUsers.length} CHARACTER{filteredUsers.length !== 1 ? "S" : ""} DISCOVERED
+            </span>
+            {(search || roleFilter !== "All") && (
               <button
-                onClick={() => setSearch("")}
-                className="text-sm font-black underline"
+                onClick={() => {
+                  setSearch("")
+                  setRoleFilter("All")
+                }}
+                className="text-[#7046D9] underline hover:text-[#5E35B1]"
               >
-                Clear search
+                Reset filters
               </button>
             )}
-
           </div>
+        </section>
 
-        </div>
-
-        {/* Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-
+        {/* Teammates Character Cards Grid */}
+        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredUsers.map((user) => {
-
             const match = calculateMatch(user)
             const selected = selectedUsers.includes(user.id)
             const matchedSkills = getMatchedSkills(user)
@@ -431,251 +385,185 @@ function FindTeammates() {
             return (
               <div
                 key={user.id}
-                className={`rounded-3xl border-4 border-[#17142B] ${user.color} p-5 shadow-[7px_7px_0_#17142B] transition duration-200 hover:-translate-y-2 hover:shadow-[9px_9px_0_#17142B]`}
+                className={`group relative flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B] transition duration-150 hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B] ${
+                  selected ? "ring-2 ring-[#7046D9]" : ""
+                }`}
               >
+                <div>
+                  {/* Card Header Tag */}
+                  <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      RECRUIT #{user.id}
+                    </span>
+                    <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                      {match}% MATCH
+                    </span>
+                  </div>
 
-                {/* User Header */}
-                <div className="flex items-start justify-between">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white text-3xl shadow-[2px_2px_0_#17142B]">
+                  {/* Character Avatar & Info */}
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
                       {user.emoji}
                     </div>
 
-                    <div>
-
-                      <h2 className="text-xl font-black">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
                         {user.name}
-                      </h2>
-
-                      <p className="font-bold">
+                      </h3>
+                      <p className="text-xs font-black uppercase text-[#7046D9]">
                         {user.role}
                       </p>
-
-                      <p className="text-sm font-bold opacity-60">
+                      <span className="mt-0.5 inline-block rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                         {user.experience}
-                      </p>
+                      </span>
+                    </div>
+                  </div>
 
+                  {/* Match Meter Bar */}
+                  <div className="mt-4">
+                    <div className="mb-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <span>SYNERGY POWER</span>
+                      <span>{match}/100</span>
                     </div>
 
-                  </div>
-
-                  {/* Match */}
-                  <div className="rotate-3 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3 py-2 text-center shadow-[3px_3px_0_#17142B]">
-
-                    <p className="text-xl font-black">
-                      {match}%
-                    </p>
-
-                    <p className="text-[9px] font-black uppercase">
-                      Match
-                    </p>
-
-                  </div>
-
-                </div>
-
-                {/* Match Meter */}
-                <div className="mt-4">
-
-                  <div className="mb-1 flex items-center justify-between text-xs font-black">
-                    <span>
-                      COMPATIBILITY
-                    </span>
-
-                    <span>
-                      {match}/100
-                    </span>
-                  </div>
-
-                  <div className="h-3 overflow-hidden rounded-full border-2 border-[#17142B] bg-white">
-
-                    <div
-                      className="h-full rounded-full bg-[#7046D9] transition-all duration-500"
-                      style={{
-                        width: `${match}%`,
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* Project Goal */}
-                {user.projectGoal && (
-                  <div className="mt-4 flex items-center justify-between rounded-xl border-2 border-[#17142B] bg-white/70 px-3 py-2">
-
-                    <span className="text-xs font-black uppercase tracking-wide">
-                      Project
-                    </span>
-
-                    <span className="text-xs font-black">
-                      {user.projectGoal}
-                    </span>
-
-                  </div>
-                )}
-
-                {/* Skills */}
-                <div className="mt-5">
-
-                  <p className="mb-2 text-xs font-black uppercase tracking-wide">
-                    Skills
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-
-                    {user.skills.map((skill) => {
-
-                      const isMatched =
-                        matchedSkills.includes(skill)
-
-                      return (
-                        <span
-                          key={skill}
-                          className={`rounded-full border-2 border-[#17142B] px-3 py-1 text-xs font-black transition ${
-                            isMatched
-                              ? "bg-[#17142B] text-white"
-                              : "bg-white"
-                          }`}
-                        >
-                          {isMatched && "✓ "}
-                          {skill}
-                        </span>
-                      )
-                    })}
-
-                  </div>
-
-                </div>
-
-                {/* Match Explanation */}
-                <div className="mt-4 rounded-2xl border-2 border-[#17142B] bg-white/75 p-3">
-
-                  <div className="mb-2 flex items-center gap-2">
-
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B]">
-                      <Sparkles size={14} />
+                    <div className="h-2.5 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
+                      <div
+                        className="h-full rounded-full bg-[#7046D9] transition-all duration-500"
+                        style={{ width: `${match}%` }}
+                      />
                     </div>
+                  </div>
 
-                    <p className="text-xs font-black uppercase tracking-wide">
+                  {/* Project Goal */}
+                  {user.projectGoal && (
+                    <div className="mt-3 flex items-center justify-between rounded-lg border-2 border-[#17142B] bg-[#FFF8E8] px-2.5 py-1 text-xs">
+                      <span className="font-black uppercase text-slate-500 text-[10px]">Mission</span>
+                      <span className="font-black text-[#17142B]">{user.projectGoal}</span>
+                    </div>
+                  )}
+
+                  {/* Skills Loadout */}
+                  <div className="mt-3.5">
+                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Skills
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {user.skills.map((skill) => {
+                        const isMatched = matchedSkills.includes(skill)
+                        return (
+                          <span
+                            key={skill}
+                            className={`rounded-md border-2 px-2 py-0.5 text-[11px] font-black transition ${
+                              isMatched
+                                ? "border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]"
+                                : "border-[#17142B] bg-[#FFF8E8] text-slate-700"
+                            }`}
+                          >
+                            {isMatched && "✓ "}
+                            {skill}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Why this match callout */}
+                  <div className="mt-3.5 rounded-xl border-2 border-[#17142B] bg-[#DCCFFF]/40 p-3 shadow-[1px_1px_0_#17142B]">
+                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#17142B]">
+                      <Sparkles size={11} className="text-[#7046D9]" />
                       Why this match?
-                    </p>
+                    </div>
 
+                    <div className="space-y-0.5">
+                      {reasons.map((reason) => (
+                        <p
+                          key={reason}
+                          className="text-[11px] font-bold text-slate-700"
+                        >
+                          ✓ {reason}
+                        </p>
+                      ))}
+                    </div>
                   </div>
-
-                  <div className="space-y-1">
-
-                    {reasons.map((reason) => (
-                      <p
-                        key={reason}
-                        className="text-xs font-bold"
-                      >
-                        ✓ {reason}
-                      </p>
-                    ))}
-
-                  </div>
-
                 </div>
 
-                {/* Button */}
+                {/* Add to Team Action Button */}
                 <button
                   onClick={() => toggleUser(user.id)}
-                  className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#17142B] px-4 py-3 font-black shadow-[4px_4px_0_#17142B] transition active:translate-x-1 active:translate-y-1 active:shadow-none ${
+                  className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#17142B] py-2.5 text-xs font-black uppercase tracking-wider transition active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${
                     selected
-                      ? "bg-[#17142B] text-white"
-                      : "bg-white hover:-translate-y-1"
+                      ? "bg-[#17142B] text-white shadow-[2px_2px_0_#7046D9]"
+                      : "bg-[#7046D9] text-white shadow-[2px_2px_0_#17142B] hover:-translate-y-0.5 hover:shadow-[3px_3px_0_#17142B]"
                   }`}
                 >
-
                   {selected ? (
                     <>
-                      <Check size={19} />
-                      Added to Team
+                      <Check size={16} />
+                      IN SQUAD
                     </>
                   ) : (
                     <>
-                      <UserPlus size={19} />
-                      Add to Team
+                      <UserPlus size={16} />
+                      + ADD TO TEAM
                     </>
                   )}
-
                 </button>
-
               </div>
             )
           })}
+        </section>
 
-        </div>
-
-        {/* No Results */}
+        {/* No Results Fallback */}
         {filteredUsers.length === 0 && (
-          <div className="rounded-3xl border-4 border-[#17142B] bg-[#F7A6C7] p-10 text-center shadow-[7px_7px_0_#17142B]">
-
-            <div className="text-5xl">
+          <div className="rounded-2xl border-2 border-[#17142B] bg-white p-10 text-center shadow-[4px_4px_0_#17142B]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] text-2xl shadow-[2px_2px_0_#17142B]">
               🔎
             </div>
-
-            <h2 className="mt-4 text-2xl font-black">
-              No teammates found!
+            <h2 className="mt-4 text-xl font-black uppercase text-[#17142B]">
+              No Teammates Found on this Wall!
             </h2>
-
-            <p className="mt-2 font-bold">
-              Try a different name, skill or role.
+            <p className="mt-1 text-xs font-bold text-slate-600">
+              Try a different codename, skill keyword, or reset your class filter.
             </p>
-
             <button
               onClick={() => {
                 setSearch("")
                 setRoleFilter("All")
               }}
-              className="mt-5 rounded-xl border-2 border-[#17142B] bg-white px-5 py-3 font-black shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1"
+              className="mt-5 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
             >
               Reset Filters
             </button>
-
           </div>
         )}
-
       </div>
 
-      {/* Bottom Team Bar */}
+      {/* Floating Bottom Squad Bar */}
       {selectedUsers.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border-4 border-[#17142B] bg-white p-4 shadow-[7px_7px_0_#17142B]">
-
+        <div className="fixed bottom-5 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl border-2 border-[#17142B] bg-white p-3.5 shadow-[5px_5px_0_#17142B]">
           <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#BDE7D6]">
-              <Users size={20} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[2px_2px_0_#17142B]">
+              <Users size={18} />
             </div>
-
             <div>
-
-              <p className="text-2xl font-black leading-none">
-                {selectedUsers.length}
+              <p className="text-base font-black uppercase text-[#17142B] leading-none">
+                {selectedUsers.length} Teammate{selectedUsers.length > 1 ? "s" : ""} Recruited
               </p>
-
-              <p className="text-sm font-bold">
-                teammate
-                {selectedUsers.length > 1 ? "s" : ""} selected
+              <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                Ready to fuse into your comic scoreboard
               </p>
-
             </div>
-
           </div>
 
           <button
             onClick={buildTeam}
-            className="rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-5 py-3 font-black text-white shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[3px_3px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
           >
-            Build Team →
+            Build Team
+            <ArrowRight size={14} />
           </button>
-
         </div>
       )}
-
     </div>
   )
 }

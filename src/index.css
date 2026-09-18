@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .bg-halftone-subtle {
+    background-image: radial-gradient(rgba(23, 20, 43, 0.07) 1.5px, transparent 1.5px);
+    background-size: 16px 16px;
+  }
+
+  .bg-halftone-purple {
+    background-image: radial-gradient(rgba(112, 70, 217, 0.12) 1.5px, transparent 1.5px);
+    background-size: 14px 14px;
+  }
+
+  .bg-halftone-white {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px);
+    background-size: 14px 14px;
+  }
+
+  .bg-comic-dots {
+    background-image: radial-gradient(#17142B 1px, transparent 1px);
+    background-size: 12px 12px;
+  }
+}

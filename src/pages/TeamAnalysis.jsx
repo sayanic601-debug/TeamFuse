@@ -1,5 +1,3 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
   Check,
@@ -9,32 +7,88 @@ import {
   Zap,
   ShieldCheck,
   AlertTriangle,
-  BriefcaseBusiness,
-  UserRoundPlus,
-  Crown,
-  Trash2,
-  Copy,
-  RotateCcw,
+  Briefcase,
+  UserPlus,
+  ArrowRight,
+  Flame,
+  Star,
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+
+const demoUsers = [
+  {
+    id: 1,
+    name: "Rahul",
+    role: "Backend Developer",
+    experience: "Intermediate",
+    projectGoal: "Hackathon",
+    skills: ["Node.js", "MongoDB", "Express"],
+    emoji: "👨🏻‍💻",
+    color: "bg-[#BDE7D6]",
+  },
+  {
+    id: 2,
+    name: "Ananya",
+    role: "ML Engineer",
+    experience: "Advanced",
+    projectGoal: "Startup",
+    skills: ["Python", "Machine Learning", "Figma"],
+    emoji: "👩🏻‍🔬",
+    color: "bg-[#FFD86B]",
+  },
+  {
+    id: 3,
+    name: "Riya",
+    role: "UI/UX Designer",
+    experience: "Intermediate",
+    projectGoal: "College Project",
+    skills: ["UI/UX", "Figma", "React"],
+    emoji: "👩🏻‍🎨",
+    color: "bg-[#F7A6C7]",
+  },
+  {
+    id: 4,
+    name: "Arjun",
+    role: "Full Stack Developer",
+    experience: "Advanced",
+    projectGoal: "Hackathon",
+    skills: ["React", "Node.js", "MongoDB"],
+    emoji: "👨🏻‍💻",
+    color: "bg-[#DCCFFF]",
+  },
+  {
+    id: 5,
+    name: "Sneha",
+    role: "Frontend Developer",
+    experience: "Beginner",
+    projectGoal: "Personal Project",
+    skills: ["React", "Java", "UI/UX"],
+    emoji: "👩🏻‍💻",
+    color: "bg-[#FFD6CE]",
+  },
+  {
+    id: 6,
+    name: "Aditya",
+    role: "Backend Developer",
+    experience: "Intermediate",
+    projectGoal: "Open Source",
+    skills: ["Python", "Node.js", "MongoDB"],
+    emoji: "👨🏻‍💻",
+    color: "bg-[#BDE7D6]",
+  },
+]
 
 function TeamAnalysis() {
   const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
 
-  // Safe parsing helper
-  const safeParse = (key, fallback) => {
-    try {
-      const item = localStorage.getItem(key)
-      return item ? JSON.parse(item) : fallback
-    } catch {
-      return fallback
-    }
-  }
+  const team = JSON.parse(
+    localStorage.getItem("teamfuseTeam") || "[]"
+  )
 
-  const [team, setTeam] = useState(() => safeParse("teamfuseTeam", []))
-  const [profile] = useState(() => safeParse("teamfuseProfile", null))
+  const profile = JSON.parse(
+    localStorage.getItem("teamfuseProfile") || "null"
+  )
 
-  // Define full core skill repository across the app
   const allSkills = [
     "React",
     "Node.js",
@@ -43,66 +97,29 @@ function TeamAnalysis() {
     "Machine Learning",
     "UI/UX",
     "Figma",
-    "Java",
-    "Express",
   ]
 
-  // Integrate profile creator into full squad if available
-  const userMember = profile?.name
-    ? {
-        id: "creator-user",
-        name: `${profile.name} (You)`,
-        role: profile.role || "Team Lead",
-        experience: profile.experience || "Intermediate",
-        projectGoal: profile.projectGoal || "Hackathon",
-        skills: profile.skills || [],
-        emoji: "👑",
-        color: "bg-[#FFD86B]",
-        isLeader: true,
-      }
-    : null
-
-  const fullSquad = userMember ? [userMember, ...team] : team
-
-  // Teammates removal handler
-  const handleRemoveTeammate = (id) => {
-    const updatedTeam = team.filter((member) => member.id !== id)
-    setTeam(updatedTeam)
-    localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
-  }
-
-  // Clear squad handler
-  const handleClearSquad = () => {
-    setTeam([])
-    localStorage.setItem("teamfuseTeam", JSON.stringify([]))
-  }
-
-  // Skills calculations
-  const squadSkills = [
-    ...new Set(fullSquad.flatMap((member) => member.skills || [])),
+  const coveredSkills = [
+    ...new Set(team.flatMap((member) => member.skills || [])),
   ]
-
-  const coveredCoreSkills = allSkills.filter((skill) =>
-    squadSkills.includes(skill)
-  )
 
   const missingSkills = allSkills.filter(
-    (skill) => !squadSkills.includes(skill)
+    (skill) => !coveredSkills.includes(skill)
   )
 
   const skillCoverage =
     allSkills.length > 0
       ? Math.min(
           100,
-          Math.round((coveredCoreSkills.length / allSkills.length) * 100)
+          Math.round((coveredSkills.length / allSkills.length) * 100)
         )
       : 0
 
   const uniqueRoles = [
-    ...new Set(fullSquad.map((member) => member.role).filter(Boolean)),
+    ...new Set(team.map((member) => member.role).filter(Boolean)),
   ]
 
-  // Project Goal & Alignment
+  // Project Goal
   const projectGoal = profile?.projectGoal || team[0]?.projectGoal || "Project"
 
   const sameGoalMembers = team.filter(
@@ -112,142 +129,147 @@ function TeamAnalysis() {
   const projectGoalMatch =
     team.length > 0
       ? Math.round((sameGoalMembers.length / team.length) * 100)
-      : 100
+      : 0
 
-  // Needs / looking-for skill match
-  const lookingFor = profile?.lookingFor || []
-  const matchedLookingFor = lookingFor.filter((skill) =>
-    squadSkills.includes(skill)
-  )
-
-  // Team Compatibility Calculation
+  // Team Compatibility calculation
   const calculateCompatibility = () => {
     if (team.length === 0) return 0
 
     let score = 0
 
-    // 1. Skill diversity & coverage (up to 40 pts)
-    const skillScore = Math.min(40, squadSkills.length * 6)
+    const skillScore = Math.min(40, coveredSkills.length * 6)
     score += skillScore
 
-    // 2. Role diversity (up to 25 pts)
     const roleScore = Math.min(25, uniqueRoles.length * 8)
     score += roleScore
 
-    // 3. Goal alignment (up to 20 pts)
     score += Math.round(projectGoalMatch * 0.2)
 
-    // 4. Experience balance (up to 15 pts)
     const experiences = [
-      ...new Set(fullSquad.map((member) => member.experience).filter(Boolean)),
+      ...new Set(team.map((member) => member.experience)),
     ]
+
     const experienceScore = Math.min(15, experiences.length * 5)
     score += experienceScore
 
-    return Math.min(100, Math.max(0, Math.round(score)))
+    return Math.min(100, Math.round(score))
   }
 
   const compatibilityScore = calculateCompatibility()
 
-  // Team Readiness Calculation
+  // Team Readiness calculation
   const calculateReadiness = () => {
     if (team.length === 0) return 0
 
     let score = 0
 
-    // Skill coverage impact (up to 50 pts)
     score += Math.round(skillCoverage * 0.5)
 
-    // Role diversity impact (up to 20 pts)
     score += Math.min(20, uniqueRoles.length * 7)
 
-    // Goal alignment impact (up to 20 pts)
     score += Math.round(projectGoalMatch * 0.2)
 
-    // Squad size bonus (up to 10 pts)
-    if (fullSquad.length >= 4) {
+    if (team.length >= 3) {
       score += 10
-    } else if (fullSquad.length >= 3) {
-      score += 7
-    } else if (fullSquad.length >= 2) {
+    } else if (team.length === 2) {
       score += 5
     }
 
-    return Math.min(100, Math.max(0, Math.round(score)))
+    return Math.min(100, Math.round(score))
   }
 
   const readinessScore = calculateReadiness()
 
   const getReadinessLabel = () => {
-    if (readinessScore >= 80) return "READY TO BUILD 🚀"
-    if (readinessScore >= 60) return "ALMOST READY 🔥"
+    if (readinessScore >= 80) {
+      return "READY TO BUILD 🚀"
+    }
+    if (readinessScore >= 60) {
+      return "ALMOST READY 🔥"
+    }
     return "NEEDS A BOOST ⚡"
   }
 
   const getCompatibilityLabel = () => {
-    if (compatibilityScore >= 80) return "Highly Compatible"
-    if (compatibilityScore >= 60) return "Good Compatibility"
+    if (compatibilityScore >= 80) {
+      return "Highly Compatible"
+    }
+    if (compatibilityScore >= 60) {
+      return "Good Compatibility"
+    }
     return "Growing Compatibility"
   }
 
-  // Copy squad summary
-  const copySquadSummary = () => {
-    const summary = [
-      `⚡ TeamFuse Dream Team Roster ⚡`,
-      `Goal: ${projectGoal}`,
-      `Squad Size: ${fullSquad.length} members`,
-      `Compatibility: ${compatibilityScore}% | Readiness: ${readinessScore}%`,
-      `Skills Covered (${coveredCoreSkills.length}/${allSkills.length}): ${squadSkills.join(", ")}`,
-      `Members:`,
-      ...fullSquad.map(
-        (m) => `- ${m.name} (${m.role}, ${m.experience}) [${(m.skills || []).join(", ")}]`
-      ),
-    ].join("\n")
+  // Candidates who can fill missing skills
+  const availableCandidates = demoUsers.filter(
+    (candidate) => !team.some((member) => member.id === candidate.id)
+  )
 
-    navigator.clipboard.writeText(summary).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
+  const recommendedCandidates = availableCandidates
+    .map((candidate) => {
+      const matchingGapSkills = (candidate.skills || []).filter((skill) =>
+        missingSkills.includes(skill)
+      )
+      return {
+        ...candidate,
+        gapSkills: matchingGapSkills,
+      }
     })
+    .filter((candidate) => candidate.gapSkills.length > 0)
+    .sort((a, b) => b.gapSkills.length - a.gapSkills.length)
+
+  const handleAddCandidate = (candidate) => {
+    const updatedTeam = [...team, candidate]
+    localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
+    window.location.reload()
   }
 
-  // Empty State
+  // Empty State: Comic Style
   if (team.length === 0) {
     return (
-      <div className="min-h-screen bg-[#FFF9EF] px-5 py-10 text-[#17142B]">
-        <div className="mx-auto max-w-3xl">
+      <div className="min-h-screen bg-[#FFF8E8] px-5 py-12 text-[#17142B] selection:bg-[#FFD86B] selection:text-[#17142B]">
+        <div className="mx-auto max-w-xl">
           <button
             onClick={() => navigate("/find-teammates")}
-            className="mb-8 flex items-center gap-2 font-black transition hover:-translate-x-1"
+            className="mb-8 inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:text-[#7046D9]"
           >
-            <ArrowLeft size={20} />
-            Find Teammates
+            <ArrowLeft size={16} />
+            Back to Teammates
           </button>
 
-          <div className="rounded-3xl border-4 border-[#17142B] bg-[#F7A6C7] p-10 text-center shadow-[9px_9px_0_#17142B]">
-            <div className="text-6xl">💥</div>
+          <div className="rounded-2xl border-2 border-[#17142B] bg-white p-10 text-center shadow-[6px_6px_0_#17142B]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#F7A6C7] text-3xl shadow-[3px_3px_0_#17142B]">
+              💥
+            </div>
 
-            <h1 className="mt-5 text-4xl font-black">WHOOPS!</h1>
+            <div className="mt-5 inline-block rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
+              ISSUE PENDING
+            </div>
 
-            <p className="mt-3 text-lg font-bold">
-              Your squad has no recruited teammates yet.
-              <br />
-              Go scout and pick your dream partners first!
+            <h1 className="mt-3 text-3xl font-black uppercase text-[#17142B]">
+              No Squad Yet!
+            </h1>
+
+            <p className="mt-2 text-sm font-bold text-slate-600 leading-relaxed">
+              Your story starts with your first teammate. Recruit allies from the recruitment
+              wall to activate your team scoreboard.
             </p>
 
-            <div className="mt-7 flex flex-wrap justify-center gap-4">
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => navigate("/find-teammates")}
-                className="rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-6 py-3 font-black text-white shadow-[5px_5px_0_#17142B] transition hover:-translate-y-1"
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
-                Find Teammates →
+                Find Teammates
+                <ArrowRight size={15} />
               </button>
 
               {profile && (
                 <button
                   onClick={() => navigate("/create-profile")}
-                  className="rounded-xl border-2 border-[#17142B] bg-white px-6 py-3 font-black shadow-[5px_5px_0_#17142B] transition hover:-translate-y-1"
+                  className="rounded-xl border-2 border-[#17142B] bg-white px-5 py-3 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
                 >
-                  Edit Profile ✏️
+                  Edit Profile
                 </button>
               )}
             </div>
@@ -258,332 +280,356 @@ function TeamAnalysis() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF9EF] px-5 py-8 pb-16 text-[#17142B]">
+    <div className="min-h-screen bg-[#FFF8E8] px-5 py-8 pb-16 text-[#17142B] selection:bg-[#FFD86B] selection:text-[#17142B]">
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        {/* Header Navigation & Comic Issue Badge */}
+        <header className="mb-8 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-4">
           <button
             onClick={() => navigate("/find-teammates")}
-            className="flex items-center gap-2 font-black transition hover:-translate-x-1"
+            className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:text-[#7046D9]"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={16} />
             Back to Teammates
           </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={copySquadSummary}
-              className="flex items-center gap-1.5 rounded-full border-2 border-[#17142B] bg-white px-4 py-2 text-sm font-black shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-              title="Copy squad roster to clipboard"
-            >
-              {copied ? (
-                <>
-                  <Check size={16} className="text-green-600" />
-                  Copied! 🎉
-                </>
-              ) : (
-                <>
-                  <Copy size={16} />
-                  Share Squad
-                </>
-              )}
-            </button>
-
-            <div className="flex items-center gap-2 rounded-full border-2 border-[#17142B] bg-[#BDE7D6] px-4 py-2 font-black shadow-[4px_4px_0_#17142B]">
-              <Zap size={17} />
-              STEP 03
-            </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#17142B] bg-[#FFD86B] px-3.5 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
+            <Zap size={13} fill="currentColor" />
+            FINAL SCOREBOARD · ISSUE #01
           </div>
-        </div>
+        </header>
 
-        {/* Hero */}
-        <div className="relative mb-10">
-          <div className="mb-4 inline-flex rotate-[-2deg] items-center gap-2 rounded-full border-2 border-[#17142B] bg-[#FFD86B] px-4 py-2 font-black shadow-[4px_4px_0_#17142B]">
-            <Sparkles size={17} />
-            TEAM ANALYSIS
+        {/* Hero: Comic Scoreboard Header */}
+        <section className="relative mb-8">
+          <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 bg-halftone-purple opacity-50" />
+
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-3 py-0.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+            <Sparkles size={13} />
+            SQUAD SCOREBOARD
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="max-w-4xl text-4xl font-black leading-tight md:text-6xl">
-                Your Dream Team 💥
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[#17142B] sm:text-4xl lg:text-5xl">
+                Your Dream Team
               </h1>
-              <p className="mt-3 max-w-2xl text-lg font-bold text-[#17142B]/70">
-                Let's see what happens when your skills and strengths fuse together!
+              <p className="mt-2 text-sm font-bold text-slate-600">
+                Let's see what happens when your skills and superpowers fuse together!
               </p>
             </div>
 
-            <div className="mb-2 rotate-3 rounded-xl border-2 border-[#17142B] bg-[#F7A6C7] px-4 py-2 text-xs font-black shadow-[4px_4px_0_#17142B]">
-              TEAM: FUSED!
-            </div>
-          </div>
-        </div>
-
-        {/* Project Goal */}
-        <section className="mb-8 rounded-3xl border-4 border-[#17142B] bg-[#DCCFFF] p-5 shadow-[7px_7px_0_#17142B]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white shadow-[3px_3px_0_#17142B]">
-                <Target size={23} />
-              </div>
-
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider opacity-60">
-                  Target Project Goal
-                </p>
-                <h2 className="text-2xl font-black">{projectGoal}</h2>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-xl border-2 border-[#17142B] bg-white px-4 py-2.5 font-black shadow-[3px_3px_0_#17142B]">
-                {sameGoalMembers.length}/{team.length} Teammates Aligned
-              </div>
-
-              {lookingFor.length > 0 && (
-                <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-4 py-2.5 font-black shadow-[3px_3px_0_#17142B]">
-                  {matchedLookingFor.length}/{lookingFor.length} Needed Skills Found
-                </div>
-              )}
+            <div className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+              <Flame size={14} className="text-amber-700" />
+              TEAM: FUSED & READY!
             </div>
           </div>
         </section>
 
-        {/* Smart Stats Grid */}
-        <section className="mb-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        {/* Project Goal Mission Badge Card */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#DCCFFF] text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <Target size={24} />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#7046D9]">
+                  PROJECT MISSION BADGE
+                </p>
+                <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+                  MISSION: {projectGoal}
+                </h2>
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-2 self-start rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-2 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B] sm:self-center">
+              <span className="h-2 w-2 rounded-full bg-[#7046D9]" />
+              {sameGoalMembers.length} of {team.length} ALLIES ALIGNED
+            </div>
+          </div>
+        </section>
+
+        {/* Comic Stat Blocks Grid */}
+        <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Squad Size */}
-          <div className="rotate-[-1deg] rounded-3xl border-4 border-[#17142B] bg-[#FFD86B] p-5 shadow-[7px_7px_0_#17142B]">
+          <div className="rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider">
-                  Squad Size
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
+                  SQUAD SIZE
                 </p>
-                <p className="mt-1 text-4xl font-black">{fullSquad.length}</p>
-                <p className="text-sm font-bold">
-                  {userMember ? `You + ${team.length} Teammates` : `${team.length} Members`}
+                <p className="mt-1 text-3xl font-black text-[#17142B]">
+                  {team.length}
+                </p>
+                <p className="text-xs font-black uppercase text-[#17142B]/80">
+                  Builders
                 </p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
-                <Users size={26} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <Users size={22} />
               </div>
             </div>
           </div>
 
-          {/* Skill Coverage */}
-          <div className="rotate-[1deg] rounded-3xl border-4 border-[#17142B] bg-[#BDE7D6] p-5 shadow-[7px_7px_0_#17142B]">
+          {/* Skill Power */}
+          <div className="rounded-2xl border-2 border-[#17142B] bg-[#BDE7D6] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider">
-                  Skill Power
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
+                  TEAM POWER
                 </p>
-                <p className="mt-1 text-4xl font-black">{skillCoverage}%</p>
-                <p className="text-sm font-bold">
-                  {coveredCoreSkills.length}/{allSkills.length} Core Skills
+                <p className="mt-1 text-3xl font-black text-[#17142B]">
+                  {skillCoverage}%
+                </p>
+                <p className="text-xs font-black uppercase text-[#17142B]/80">
+                  Coverage
                 </p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
-                <Target size={26} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <Target size={22} />
               </div>
             </div>
           </div>
 
-          {/* Compatibility */}
-          <div className="rotate-[-1deg] rounded-3xl border-4 border-[#17142B] bg-[#F7A6C7] p-5 shadow-[7px_7px_0_#17142B]">
+          {/* Team Fit */}
+          <div className="rounded-2xl border-2 border-[#17142B] bg-[#F7A6C7] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider">
-                  Team Fit
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
+                  TEAM FIT
                 </p>
-                <p className="mt-1 text-4xl font-black">{compatibilityScore}%</p>
-                <p className="text-sm font-bold">{getCompatibilityLabel()}</p>
+                <p className="mt-1 text-3xl font-black text-[#17142B]">
+                  {compatibilityScore}%
+                </p>
+                <p className="text-xs font-black uppercase text-[#17142B]/80 truncate max-w-[110px]">
+                  {getCompatibilityLabel()}
+                </p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
-                <Sparkles size={26} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <Sparkles size={22} />
               </div>
             </div>
           </div>
 
           {/* Readiness */}
-          <div className="rotate-[1deg] rounded-3xl border-4 border-[#17142B] bg-[#DCCFFF] p-5 shadow-[7px_7px_0_#17142B]">
+          <div className="rounded-2xl border-2 border-[#17142B] bg-[#DCCFFF] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider">
-                  Readiness
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
+                  READINESS
                 </p>
-                <p className="mt-1 text-4xl font-black">{readinessScore}%</p>
-                <p className="text-sm font-bold">{getReadinessLabel()}</p>
+                <p className="mt-1 text-3xl font-black text-[#17142B]">
+                  {readinessScore}%
+                </p>
+                <p className="text-xs font-black uppercase text-[#17142B]/80 truncate max-w-[110px]">
+                  {getReadinessLabel()}
+                </p>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
-                <Zap size={26} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#7046D9] shadow-[2px_2px_0_#17142B]">
+                <Zap size={22} />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Compatibility + Readiness Details */}
-        <section className="mb-10 grid gap-6 md:grid-cols-2">
-          {/* Team Compatibility */}
-          <div className="rounded-3xl border-4 border-[#17142B] bg-white p-6 shadow-[7px_7px_0_#17142B]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#F7A6C7]">
-                    <Sparkles size={21} />
+        {/* Side-by-Side: Team Power Meter & Ready Check ⚡ */}
+        <section className="mb-10 grid gap-6 lg:grid-cols-2">
+          {/* Panel 1: TEAM POWER METER (Compatibility) */}
+          <div className="flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] shadow-[1px_1px_0_#17142B]">
+                      <Sparkles size={18} />
+                    </div>
+                    <h2 className="text-xl font-black uppercase tracking-wide text-[#17142B]">
+                      TEAM POWER METER
+                    </h2>
                   </div>
-                  <h2 className="text-2xl font-black">Team Compatibility</h2>
+                  <p className="mt-2 text-xs font-bold text-slate-500">
+                    Synergy calculated from shared skill sets, role diversity, and mission fit.
+                  </p>
                 </div>
-                <p className="mt-2 font-bold opacity-60">
-                  How well the selected teammates blend together.
+
+                <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3 py-1 text-xl font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                  {compatibilityScore}%
+                </div>
+              </div>
+
+              {/* Comic-Style Meter Bar */}
+              <div className="mt-5 h-4 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
+                <div
+                  className="h-full rounded-full bg-[#7046D9] transition-all duration-700"
+                  style={{ width: `${compatibilityScore}%` }}
+                />
+              </div>
+
+              <div className="mt-3.5 flex items-center gap-2 text-xs font-black uppercase text-[#17142B]">
+                <ShieldCheck size={16} className="text-[#7046D9]" />
+                <span>{getCompatibilityLabel()}</span>
+              </div>
+            </div>
+
+            {/* Supporting Metrics Panel */}
+            <div className="mt-6 grid grid-cols-3 gap-3 border-t-2 border-[#17142B]/10 pt-4 text-center">
+              <div className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
+                <p className="text-xl font-black text-[#17142B]">
+                  {coveredSkills.length}
+                </p>
+                <p className="text-[10px] font-black uppercase text-slate-500">
+                  Skills
                 </p>
               </div>
 
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3 py-2 text-xl font-black shadow-[3px_3px_0_#17142B]">
-                {compatibilityScore}%
-              </div>
-            </div>
-
-            <div className="mt-5 h-5 overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF9EF]">
-              <div
-                className="h-full rounded-full bg-[#7046D9] transition-all duration-700"
-                style={{ width: `${compatibilityScore}%` }}
-              />
-            </div>
-
-            <div className="mt-4 flex items-center gap-2">
-              <ShieldCheck size={18} />
-              <p className="font-black">{getCompatibilityLabel()}</p>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] p-3 text-center">
-                <p className="text-2xl font-black">{squadSkills.length}</p>
-                <p className="text-xs font-black">Total Skills</p>
+              <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
+                <p className="text-xl font-black text-[#17142B]">
+                  {uniqueRoles.length}
+                </p>
+                <p className="text-[10px] font-black uppercase text-slate-500">
+                  Classes
+                </p>
               </div>
 
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] p-3 text-center">
-                <p className="text-2xl font-black">{uniqueRoles.length}</p>
-                <p className="text-xs font-black">Roles</p>
-              </div>
-
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#DCCFFF] p-3 text-center">
-                <p className="text-2xl font-black">{projectGoalMatch}%</p>
-                <p className="text-xs font-black">Goal Match</p>
+              <div className="rounded-xl border-2 border-[#17142B] bg-[#DCCFFF]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
+                <p className="text-xl font-black text-[#17142B]">
+                  {projectGoalMatch}%
+                </p>
+                <p className="text-[10px] font-black uppercase text-slate-500">
+                  Goal Fit
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Team Readiness */}
-          <div className="rounded-3xl border-4 border-[#17142B] bg-[#BDE7D6] p-6 shadow-[7px_7px_0_#17142B]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white">
-                    <Zap size={21} />
+          {/* Panel 2: READY CHECK ⚡ (Readiness) */}
+          <div className="flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                      <Zap size={18} fill="currentColor" />
+                    </div>
+                    <h2 className="text-xl font-black uppercase tracking-wide text-[#17142B]">
+                      READY CHECK ⚡
+                    </h2>
                   </div>
-                  <h2 className="text-2xl font-black">Team Readiness</h2>
+                  <p className="mt-2 text-xs font-bold text-slate-500">
+                    Game-style readiness evaluation measuring squad size, core coverage, and building capacity.
+                  </p>
                 </div>
-                <p className="mt-2 font-bold text-[#17142B]/70">
-                  Is your squad equipped and ready to start building?
-                </p>
+
+                <div className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3 py-1 text-xl font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                  {readinessScore}%
+                </div>
               </div>
 
-              <div className="rounded-xl border-2 border-[#17142B] bg-white px-3 py-2 text-xl font-black shadow-[3px_3px_0_#17142B]">
-                {readinessScore}%
+              {/* Inked Progress Bar */}
+              <div className="mt-5 h-4 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
+                <div
+                  className="h-full rounded-full bg-[#17142B] transition-all duration-700"
+                  style={{ width: `${readinessScore}%` }}
+                />
+              </div>
+
+              <div className="mt-3.5 flex items-center gap-2 text-xs font-black uppercase text-[#17142B]">
+                <Star size={16} fill="currentColor" className="text-amber-500" />
+                <span>{getReadinessLabel()}</span>
               </div>
             </div>
 
-            <div className="mt-5 h-5 overflow-hidden rounded-full border-2 border-[#17142B] bg-white">
-              <div
-                className="h-full rounded-full bg-[#17142B] transition-all duration-700"
-                style={{ width: `${readinessScore}%` }}
-              />
-            </div>
-
-            <div className="mt-5 rounded-2xl border-2 border-[#17142B] bg-white p-4">
-              <p className="text-xl font-black">{getReadinessLabel()}</p>
-              <p className="mt-1 text-sm font-bold opacity-60">
+            {/* Ready Status Box */}
+            <div className="mt-6 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3.5 shadow-[2px_2px_0_#17142B]">
+              <p className="text-xs font-black uppercase text-[#17142B]">
+                {readinessScore >= 80
+                  ? "SQUAD IS READY TO MAKE SOME NOISE! 🚀"
+                  : readinessScore >= 60
+                  ? "SQUAD IS TAKING SERIOUS SHAPE! 🔥"
+                  : "YOU'VE GOT THE FOUNDATION — NOW FILL THE GAPS! ⚡"}
+              </p>
+              <p className="mt-1 text-[11px] font-bold text-slate-600">
                 {missingSkills.length === 0
-                  ? "Your squad covers the full core skill map! You're ready to ship."
-                  : `Consider adding someone with ${missingSkills[0]} to close your remaining skill gap.`}
+                  ? "All standard technical requirements are accounted for in the core loadout."
+                  : `Recruiting someone with ${missingSkills[0]} expertise will close your remaining skill gap.`}
               </p>
             </div>
           </div>
         </section>
 
-        {/* Team Members List */}
+        {/* Team Members Section (Collectible Character Cards) */}
         <section className="mb-10">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#F7A6C7] shadow-[3px_3px_0_#17142B]">
-                <Users size={21} />
+          <div className="mb-5 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                <Users size={18} />
               </div>
               <div>
-                <h2 className="text-3xl font-black">Team Members</h2>
-                <p className="font-bold opacity-60">
-                  The people powering your squad
+                <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+                  Team Members
+                </h2>
+                <p className="text-xs font-bold text-slate-500">
+                  Collectible builder cards powering your squad
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => navigate("/find-teammates")}
-              className="flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-4 py-2 text-sm font-black shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
             >
-              <UserRoundPlus size={16} />
-              Add More Teammates
+              <UserPlus size={14} />
+              Add Teammates
             </button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {fullSquad.map((member) => (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {team.map((member) => (
               <div
                 key={member.id}
-                className={`relative rounded-3xl border-4 border-[#17142B] ${member.color} p-5 shadow-[7px_7px_0_#17142B] transition hover:-translate-y-1`}
+                className="group rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]"
               >
-                {/* User Leader Badge or Remove Button */}
-                {member.isLeader ? (
-                  <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border-2 border-[#17142B] bg-white px-2.5 py-1 text-[11px] font-black uppercase shadow-[2px_2px_0_#17142B]">
-                    <Crown size={13} className="text-amber-500" />
-                    Squad Lead
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleRemoveTeammate(member.id)}
-                    className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:bg-[#F05A47] hover:text-white"
-                    title={`Remove ${member.name} from squad`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
+                {/* Collectible Badge Header */}
+                <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    MEMBER #{member.id}
+                  </span>
+                  <span className="rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
+                    {member.role?.split(" ")[0]?.toUpperCase() || "CLASS"}
+                  </span>
+                </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-white text-4xl shadow-[2px_2px_0_#17142B]">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
                     {member.emoji}
                   </div>
 
-                  <div>
-                    <h3 className="text-2xl font-black">{member.name}</h3>
-                    <p className="font-bold">{member.role}</p>
-                    <p className="text-sm font-bold opacity-60">
-                      {member.experience}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
+                      {member.name}
+                    </h3>
+                    <p className="text-xs font-black uppercase text-[#7046D9]">
+                      {member.role}
                     </p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                        {member.experience}
+                      </span>
+                      {member.projectGoal && (
+                        <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
+                          {member.projectGoal}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {member.projectGoal && (
-                  <div className="mt-4 flex items-center justify-between rounded-xl border-2 border-[#17142B] bg-white/70 px-3 py-2">
-                    <span className="text-xs font-black uppercase">Goal</span>
-                    <span className="text-xs font-black">
-                      {member.projectGoal}
-                    </span>
-                  </div>
-                )}
-
-                <div className="mt-4 flex flex-wrap gap-2">
+                {/* Skills Chips */}
+                <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
                   {(member.skills || []).map((skill) => (
                     <span
                       key={skill}
-                      className="rounded-full border-2 border-[#17142B] bg-white px-3 py-1 text-xs font-black"
+                      className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
                     >
                       {skill}
                     </span>
@@ -594,195 +640,274 @@ function TeamAnalysis() {
           </div>
         </section>
 
-        {/* Skill Analysis */}
+        {/* Skill Breakdown (Two Comic Panels: SKILLS WE HAVE & SKILLS WE NEED) */}
         <section className="mb-10">
-          <div className="mb-5">
-            <h2 className="text-3xl font-black">Skill Breakdown</h2>
-            <p className="mt-1 font-bold text-[#17142B]/60">
-              See what technical areas your squad can tackle.
+          <div className="mb-5 border-b-2 border-[#17142B]/10 pb-3">
+            <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+              Skill Breakdown
+            </h2>
+            <p className="text-xs font-bold text-slate-500">
+              Unlocked superpowers vs. missing abilities
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Covered Skills */}
-            <div className="rounded-3xl border-4 border-[#17142B] bg-[#BDE7D6] p-6 shadow-[7px_7px_0_#17142B]">
-              <div className="mb-5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white">
-                    <Check size={22} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Panel LEFT: SKILLS WE HAVE */}
+            <div className="rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                    <Check size={18} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black">Core Skills Covered</h2>
-                    <p className="font-bold">
-                      {coveredCoreSkills.length} / {allSkills.length} Core Skills
+                    <h3 className="text-lg font-black uppercase text-[#17142B]">
+                      SKILLS WE HAVE
+                    </h3>
+                    <p className="text-xs font-bold text-slate-500">
+                      {coveredSkills.length} of {allSkills.length} core abilities unlocked
                     </p>
                   </div>
                 </div>
 
-                <div className="text-3xl font-black">{skillCoverage}%</div>
+                <span className="rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] px-2.5 py-1 text-sm font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                  {skillCoverage}%
+                </span>
               </div>
 
-              <div className="mb-5 h-4 overflow-hidden rounded-full border-2 border-[#17142B] bg-white">
+              {/* Progress bar */}
+              <div className="mb-5 h-3 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
                 <div
                   className="h-full rounded-full bg-[#17142B] transition-all duration-700"
                   style={{ width: `${skillCoverage}%` }}
                 />
               </div>
 
-              <div className="flex flex-wrap gap-2.5">
-                {squadSkills.map((skill) => (
+              {/* Unlocked Skill Chips */}
+              <div className="flex flex-wrap gap-2">
+                {coveredSkills.map((skill) => (
                   <span
                     key={skill}
-                    className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-sm font-black shadow-[2px_2px_0_#17142B]"
+                    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] px-3 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]"
                   >
-                    ✓ {skill}
+                    <Check size={13} className="text-[#17142B]" />
+                    {skill}
                   </span>
                 ))}
               </div>
             </div>
 
-            {/* Missing Skills */}
-            <div className="rounded-3xl border-4 border-[#17142B] bg-[#F7A6C7] p-6 shadow-[7px_7px_0_#17142B]">
-              <div className="mb-5 flex items-start justify-between gap-3">
+            {/* Panel RIGHT: SKILLS WE NEED & RECRUITMENT ALERT ⚡ */}
+            <div className="rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+              <div className="mb-4 flex items-start justify-between">
                 <div>
-                  <h2 className="text-2xl font-black">🎯 Skills To Consider</h2>
-                  <p className="mt-1 font-bold">
-                    Additional capabilities that could elevate your project.
+                  <h3 className="text-lg font-black uppercase text-[#17142B]">
+                    SKILLS WE NEED
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500">
+                    Missing skill areas to complete your squad
                   </p>
                 </div>
 
                 {missingSkills.length > 0 && (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white">
-                    <AlertTriangle size={20} />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                    <AlertTriangle size={16} />
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2.5">
+              {/* Missing skills chips */}
+              <div className="flex flex-wrap gap-2">
                 {missingSkills.length > 0 ? (
                   missingSkills.map((skill) => (
                     <span
                       key={skill}
-                      className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-sm font-black shadow-[2px_2px_0_#17142B]"
+                      className="inline-flex items-center gap-1 rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] px-3 py-1.5 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]"
                     >
                       + {skill}
                     </span>
                   ))
                 ) : (
-                  <div className="w-full rounded-2xl border-2 border-[#17142B] bg-white p-5 text-center">
-                    <div className="text-4xl">🎉</div>
-                    <p className="mt-2 text-lg font-black">
-                      Full skill coverage achieved!
+                  <div className="w-full rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] p-4 text-center shadow-[2px_2px_0_#17142B]">
+                    <p className="text-sm font-black uppercase text-[#17142B]">
+                      Full Skill Coverage Achieved! 🎉
                     </p>
-                    <p className="text-xs font-bold opacity-60">
-                      Your team has all the core building blocks needed.
+                    <p className="text-xs font-bold text-slate-700 mt-0.5">
+                      Your squad covers all standard technical domains.
                     </p>
                   </div>
                 )}
               </div>
+
+              {/* "WHO CAN FILL THE GAP?" as RECRUITMENT ALERT ⚡ */}
+              {missingSkills.length > 0 && recommendedCandidates.length > 0 && (
+                <div className="mt-6 border-t-2 border-[#17142B] pt-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h4 className="flex items-center gap-1.5 text-sm font-black uppercase text-[#17142B]">
+                        <Zap size={14} className="text-[#7046D9]" fill="currentColor" />
+                        RECRUITMENT ALERT ⚡
+                      </h4>
+                      <p className="text-[11px] font-bold text-slate-500">
+                        Candidates from the recruitment wall who supply missing abilities
+                      </p>
+                    </div>
+
+                    <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
+                      {recommendedCandidates.length} RECRUITS
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {recommendedCandidates.map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3.5 shadow-[3px_3px_0_#17142B] transition duration-150 hover:-translate-y-0.5"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-xl shadow-[1px_1px_0_#17142B]">
+                              {candidate.emoji}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-sm font-black uppercase text-[#17142B]">
+                                  {candidate.name}
+                                </h5>
+                                <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-1.5 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
+                                  {candidate.gapSkills.length} GAP SKILL
+                                  {candidate.gapSkills.length > 1 ? "S" : ""}
+                                </span>
+                              </div>
+                              <p className="text-xs font-black uppercase text-[#7046D9]">
+                                {candidate.role} · {candidate.experience}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleAddCandidate(candidate)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#17142B] transition active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:-translate-y-0.5"
+                          >
+                            <UserPlus size={13} />
+                            + ADD TO TEAM
+                          </button>
+                        </div>
+
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-[#17142B]/10 pt-2">
+                          <span className="text-[10px] font-black uppercase text-slate-500">
+                            CAN BRING:
+                          </span>
+                          {candidate.gapSkills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-md border border-[#17142B] bg-white px-2 py-0.5 text-[10px] font-black uppercase text-[#7046D9]"
+                            >
+                              + {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
 
-        {/* Team Roles */}
-        <section className="mb-10 rounded-3xl border-4 border-[#17142B] bg-white p-6 shadow-[7px_7px_0_#17142B]">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFD86B]">
-              <BriefcaseBusiness size={21} />
+        {/* Role Mix: TEAM LOADOUT */}
+        <section className="mb-10 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+          <div className="mb-4 flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+              <Briefcase size={18} />
             </div>
             <div>
-              <h2 className="text-2xl font-black">Role Distribution</h2>
-              <p className="font-bold opacity-60">
-                A diverse role mix prevents bottlenecks.
+              <h2 className="text-xl font-black uppercase text-[#17142B]">
+                TEAM LOADOUT
+              </h2>
+              <p className="text-xs font-bold text-slate-500">
+                Functional role classes currently active in your squad
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5">
             {uniqueRoles.map((role) => (
               <div
                 key={role}
-                className="flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFF9EF] px-4 py-3 font-black shadow-[3px_3px_0_#17142B]"
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-3.5 py-2 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]"
               >
-                <UserRoundPlus size={17} />
+                <Zap size={13} className="text-[#7046D9]" fill="currentColor" />
                 {role}
               </div>
             ))}
           </div>
         </section>
 
-        {/* TeamFuse Verdict */}
-        <section className="relative overflow-hidden rounded-3xl border-4 border-[#17142B] bg-[#7046D9] p-7 text-white shadow-[9px_9px_0_#17142B]">
-          <div className="absolute -right-4 -top-5 rotate-12 text-7xl opacity-20">
-            ⚡
-          </div>
+        {/* TeamFuse Verdict: FINAL COMIC PANEL */}
+        <section className="relative mb-10 overflow-hidden rounded-2xl border-2 border-[#17142B] bg-[#7046D9] p-7 text-white shadow-[6px_6px_0_#17142B] sm:p-8">
+          {/* Halftone texture overlay */}
+          <div className="pointer-events-none absolute -right-6 -top-6 h-40 w-40 bg-halftone-white opacity-25" />
 
           <div className="relative">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-white bg-white/10">
-                <Zap size={17} />
-              </div>
-              <p className="text-sm font-black uppercase tracking-[0.2em]">
-                TeamFuse Verdict
-              </p>
+            <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-white bg-white/15 px-3 py-0.5 text-xs font-black uppercase tracking-widest text-[#FFD86B]">
+              <Zap size={13} fill="currentColor" />
+              TEAMFUSE VERDICT · FINAL SCORE
             </div>
 
-            <h2 className="mt-4 max-w-3xl text-3xl font-black md:text-4xl">
+            <h2 className="mt-4 max-w-3xl text-2xl font-black uppercase tracking-tight text-white sm:text-3xl lg:text-4xl">
               {readinessScore >= 80
-                ? "Your squad is primed to make serious noise! 🚀"
+                ? "READY TO MAKE SOME NOISE! 🚀"
                 : readinessScore >= 60
-                ? "Your squad is taking great shape! 🔥"
-                : "You've got the foundation — now fill the missing gaps! ⚡"}
+                ? "YOUR SQUAD IS TAKING SERIOUS SHAPE! 🔥"
+                : "YOU'VE GOT THE FOUNDATION — NOW FILL THE GAPS! ⚡"}
             </h2>
 
-            <p className="mt-3 max-w-2xl text-lg font-bold text-white/90">
+            <p className="mt-2.5 max-w-2xl text-sm font-bold text-white/90 leading-relaxed">
               {missingSkills.length === 0
-                ? `Your squad covers all ${allSkills.length} core technical domains in the skill map.`
-                : `Your squad covers ${coveredCoreSkills.length} of ${allSkills.length} core technical domains. Adding expertise in ${missingSkills[0]} would maximize project success.`}
+                ? "Your selected teammates collectively cover all the core skills in our current skill map."
+                : `Your team currently covers ${coveredSkills.length} core skills. Adding someone with ${missingSkills[0]} could expand your skill coverage.`}
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-4">
-              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3">
-                <p className="text-2xl font-black">{compatibilityScore}%</p>
-                <p className="text-sm font-bold">Compatibility</p>
+            {/* 3 Metric cards inside verdict */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3 shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
+                <p className="text-xs font-black uppercase text-purple-200">
+                  TEAM FIT
+                </p>
+                <p className="text-2xl font-black text-white">
+                  {compatibilityScore}%
+                </p>
               </div>
 
-              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3">
-                <p className="text-2xl font-black">{skillCoverage}%</p>
-                <p className="text-sm font-bold">Skill Coverage</p>
+              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3 shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
+                <p className="text-xs font-black uppercase text-purple-200">
+                  SKILLS POWER
+                </p>
+                <p className="text-2xl font-black text-white">
+                  {skillCoverage}%
+                </p>
               </div>
 
-              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3">
-                <p className="text-2xl font-black">{readinessScore}%</p>
-                <p className="text-sm font-bold">Readiness</p>
+              <div className="rounded-xl border-2 border-white bg-white/10 px-5 py-3 shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
+                <p className="text-xs font-black uppercase text-purple-200">
+                  READY
+                </p>
+                <p className="text-2xl font-black text-white">
+                  {readinessScore}%
+                </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Bottom Actions */}
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
+        {/* Bottom Action */}
+        <div className="mt-8 flex justify-center">
           <button
             onClick={() => navigate("/find-teammates")}
-            className="rounded-2xl border-4 border-[#17142B] bg-[#FFD86B] px-7 py-4 text-lg font-black shadow-[6px_6px_0_#17142B] transition hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-8 py-3.5 text-sm font-black uppercase tracking-wider text-[#17142B] shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
           >
             ← Add More Teammates
-          </button>
-
-          <button
-            onClick={copySquadSummary}
-            className="flex items-center gap-2 rounded-2xl border-4 border-[#17142B] bg-[#BDE7D6] px-7 py-4 text-lg font-black shadow-[6px_6px_0_#17142B] transition hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
-          >
-            <Copy size={20} />
-            {copied ? "Roster Copied! 🎉" : "Copy Squad Roster"}
-          </button>
-
-          <button
-            onClick={handleClearSquad}
-            className="flex items-center gap-2 rounded-2xl border-4 border-[#17142B] bg-white px-7 py-4 text-lg font-black shadow-[6px_6px_0_#17142B] transition hover:-translate-y-1 active:translate-x-1 active:translate-y-1 active:shadow-none"
-          >
-            <RotateCcw size={18} />
-            Reset Squad
           </button>
         </div>
       </div>
