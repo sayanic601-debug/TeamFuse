@@ -131,6 +131,103 @@ function TeamAnalysis() {
       ? Math.round((sameGoalMembers.length / team.length) * 100)
       : 0
 
+      // Suggested Team Lead
+const getExperienceScore = (experience) => {
+  if (experience === "Advanced") return 30
+  if (experience === "Intermediate") return 20
+  if (experience === "Beginner") return 10
+  return 0
+}
+
+const getTeamLeadScore = (member) => {
+  let score = 0
+
+  // Experience
+  score += getExperienceScore(member.experience)
+
+  // Skill contribution
+  score += Math.min(25, (member.skills || []).length * 5)
+
+  // Project goal alignment
+  if (member.projectGoal === projectGoal) {
+    score += 25
+  }
+
+  // Role contribution
+  if (
+    member.role === "Full Stack Developer" ||
+    member.role === "Backend Developer"
+  ) {
+    score += 15
+  } else {
+    score += 10
+  }
+
+  return Math.min(100, score)
+}
+
+const teamLead = [...team]
+  .map((member) => ({
+    ...member,
+    leadScore: getTeamLeadScore(member),
+  }))
+  .sort((a, b) => b.leadScore - a.leadScore)[0]
+
+  // Team Risk Detection
+const teamRisks = []
+
+if (team.length < 2) {
+  teamRisks.push({
+    type: "warning",
+    title: "Small Squad",
+    message: "Add at least one more teammate for better collaboration.",
+    icon: Users,
+  })
+}
+
+if (missingSkills.length >= 3) {
+  teamRisks.push({
+    type: "warning",
+    title: "Large Skill Gap",
+    message: `${missingSkills.length} core skills are still missing from your squad.`,
+    icon: AlertTriangle,
+  })
+}
+
+if (uniqueRoles.length === 1 && team.length > 1) {
+  teamRisks.push({
+    type: "danger",
+    title: "Role Concentration",
+    message:
+      "Most of the squad belongs to the same role. Consider adding a different role.",
+    icon: Briefcase,
+  })
+}
+
+if (projectGoalMatch < 50 && team.length > 1) {
+  teamRisks.push({
+    type: "warning",
+    title: "Mission Misalignment",
+    message:
+      "Less than half of the squad shares the same project goal.",
+    icon: Target,
+  })
+}
+
+const beginnerCount = team.filter(
+  (member) => member.experience === "Beginner"
+).length
+
+if (team.length >= 3 && beginnerCount === team.length) {
+  teamRisks.push({
+    type: "warning",
+    title: "Experience Gap",
+    message:
+      "Everyone is currently at beginner level. Consider adding an experienced builder.",
+    icon: Star,
+  })
+}
+
   // Team Compatibility calculation
   const calculateCompatibility = () => {
     if (team.length === 0) return 0
@@ -349,6 +446,109 @@ function TeamAnalysis() {
           </div>
         </section>
 
+        {/* Suggested Team Lead */}
+{teamLead && (
+  <section className="relative mb-8 overflow-hidden rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] p-6 shadow-[5px_5px_0_#17142B]">
+    <div className="pointer-events-none absolute -right-5 -top-5 text-7xl opacity-10">
+      👑
+    </div>
+
+    <div className="relative">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_#17142B]">
+            <Star size={13} fill="currentColor" />
+            Suggested Team Lead
+          </div>
+
+          <p className="mt-2 text-xs font-bold text-[#17142B]/70">
+            Based on experience, skills, role contribution, and mission alignment.
+          </p>
+        </div>
+
+        <div className="hidden rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-2 text-center text-white shadow-[2px_2px_0_#17142B] sm:block">
+          <p className="text-[9px] font-black uppercase tracking-widest">
+            Lead Score
+          </p>
+          <p className="text-xl font-black">
+            {teamLead.leadScore}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-5 rounded-xl border-2 border-[#17142B] bg-white p-4 shadow-[3px_3px_0_#17142B] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#DCCFFF] text-3xl shadow-[2px_2px_0_#17142B]">
+            {teamLead.emoji}
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xl font-black uppercase text-[#17142B]">
+                {teamLead.name}
+              </h3>
+
+              <span className="rounded-md border-2 border-[#17142B] bg-[#BDE7D6] px-2 py-0.5 text-[9px] font-black uppercase shadow-[1px_1px_0_#17142B]">
+                Lead Candidate
+              </span>
+            </div>
+
+            <p className="mt-0.5 text-xs font-black uppercase text-[#7046D9]">
+              {teamLead.role}
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="rounded-md border border-[#17142B] bg-[#FFF8E8] px-2 py-1 text-[10px] font-bold">
+                {teamLead.experience}
+              </span>
+
+              <span className="rounded-md border border-[#17142B] bg-[#FFF8E8] px-2 py-1 text-[10px] font-bold">
+                {teamLead.skills?.length || 0} Skills
+              </span>
+
+              {teamLead.projectGoal === projectGoal && (
+                <span className="rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-1 text-[10px] font-black uppercase">
+                  Mission Aligned
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 sm:hidden">
+          <div className="flex-1 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-2 text-center text-white shadow-[2px_2px_0_#17142B]">
+            <p className="text-[9px] font-black uppercase tracking-widest">
+              Lead Score
+            </p>
+            <p className="text-xl font-black">
+              {teamLead.leadScore}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#17142B] bg-white px-3 py-1.5 text-[10px] font-black uppercase shadow-[2px_2px_0_#17142B]">
+          <ShieldCheck size={13} />
+          Strong Experience
+        </span>
+
+        <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#17142B] bg-white px-3 py-1.5 text-[10px] font-black uppercase shadow-[2px_2px_0_#17142B]">
+          <Zap size={13} />
+          High Skill Contribution
+        </span>
+
+        {teamLead.projectGoal === projectGoal && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#17142B] bg-white px-3 py-1.5 text-[10px] font-black uppercase shadow-[2px_2px_0_#17142B]">
+            <Target size={13} />
+            Goal Aligned
+          </span>
+        )}
+      </div>
+    </div>
+  </section>
+)}
+
         {/* Comic Stat Blocks Grid */}
         <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Squad Size */}
@@ -556,6 +756,94 @@ function TeamAnalysis() {
             </div>
           </div>
         </section>
+
+        {/* Team Risk Detection */}
+<section className="mb-10">
+  <div className="mb-5 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+    <div>
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] text-[#17142B] shadow-[1px_1px_0_#17142B]">
+          <AlertTriangle size={18} />
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+            Team Risk Radar
+          </h2>
+
+          <p className="text-xs font-bold text-slate-500">
+            Potential gaps that could affect your squad.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <span
+      className={`rounded-lg border-2 border-[#17142B] px-3 py-1 text-[10px] font-black uppercase shadow-[2px_2px_0_#17142B] ${
+        teamRisks.length === 0
+          ? "bg-[#BDE7D6]"
+          : "bg-[#FFD86B]"
+      }`}
+    >
+      {teamRisks.length === 0
+        ? "NO RISKS"
+        : `${teamRisks.length} ALERT${teamRisks.length > 1 ? "S" : ""}`}
+    </span>
+  </div>
+
+  {teamRisks.length === 0 ? (
+    <div className="rounded-2xl border-2 border-[#17142B] bg-[#BDE7D6] p-6 shadow-[4px_4px_0_#17142B]">
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B]">
+          <ShieldCheck size={24} />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-black uppercase">
+            Squad Looks Balanced! 🎉
+          </h3>
+
+          <p className="mt-1 text-xs font-bold text-[#17142B]/70">
+            No major structural risks were detected in your current team.
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {teamRisks.map((risk, index) => {
+        const RiskIcon = risk.icon
+
+        return (
+          <div
+            key={`${risk.title}-${index}`}
+            className={`rounded-2xl border-2 border-[#17142B] p-5 shadow-[4px_4px_0_#17142B] ${
+              risk.type === "danger"
+                ? "bg-[#F7A6C7]"
+                : "bg-[#FFD86B]"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
+                <RiskIcon size={19} />
+              </div>
+
+              <div>
+                <h3 className="text-sm font-black uppercase">
+                  {risk.title}
+                </h3>
+
+                <p className="mt-1 text-xs font-bold leading-relaxed text-[#17142B]/70">
+                  {risk.message}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )}
+</section>
 
         {/* Team Members Section (Collectible Character Cards) */}
         <section className="mb-10">
