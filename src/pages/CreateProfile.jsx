@@ -19,8 +19,20 @@ import {
 function CreateProfile() {
   const navigate = useNavigate()
 
-  const [selectedSkills, setSelectedSkills] = useState([])
-  const [lookingFor, setLookingFor] = useState([])
+  const savedProfile = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("teamfuseProfile") || "null")
+    } catch {
+      return null
+    }
+  })()
+
+  const [name, setName] = useState(savedProfile?.name || "")
+  const [role, setRole] = useState(savedProfile?.role || "")
+  const [experience, setExperience] = useState(savedProfile?.experience || "")
+  const [projectGoal, setProjectGoal] = useState(savedProfile?.projectGoal || "")
+  const [selectedSkills, setSelectedSkills] = useState(savedProfile?.skills || [])
+  const [lookingFor, setLookingFor] = useState(savedProfile?.lookingFor || [])
 
   const skills = [
     "React",
@@ -61,15 +73,16 @@ function CreateProfile() {
       "Other": "⚡",
     }
 
-    const roleVal = e.target.role.value
+    const roleVal = role || e.target.role.value
     const userEmoji = roleEmojis[roleVal] || "👤"
+    const userName = name.trim() || e.target.name?.value?.trim() || "Builder"
 
     const profile = {
       id: "current-user",
-      name: e.target.name.value.trim() || "Builder",
+      name: userName,
       role: roleVal,
-      experience: e.target.experience.value,
-      projectGoal: e.target.projectGoal.value,
+      experience: experience || e.target.experience.value,
+      projectGoal: projectGoal || e.target.projectGoal.value,
       skills: selectedSkills,
       lookingFor,
       emoji: userEmoji,
@@ -99,6 +112,10 @@ function CreateProfile() {
         "teamfuseTeam",
         JSON.stringify([profile])
       )
+    }
+
+    if (!localStorage.getItem("teamfuseTeamName")) {
+      localStorage.setItem("teamfuseTeamName", `${userName}'s Squad`)
     }
 
     navigate("/find-teammates")
@@ -183,6 +200,8 @@ function CreateProfile() {
                 <input
                   name="name"
                   type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Sayani"
                   required
                   className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-3 text-sm font-bold text-[#17142B] outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
@@ -197,6 +216,8 @@ function CreateProfile() {
                 </label>
                 <select
                   name="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
                   required
                   className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-3 text-sm font-bold text-[#17142B] outline-none transition focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
                 >
@@ -218,6 +239,8 @@ function CreateProfile() {
                 </label>
                 <select
                   name="experience"
+                  value={experience}
+                  onChange={(e) => setExperience(e.target.value)}
                   required
                   className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-3 text-sm font-bold text-[#17142B] outline-none transition focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
                 >
@@ -236,6 +259,8 @@ function CreateProfile() {
                 </label>
                 <select
                   name="projectGoal"
+                  value={projectGoal}
+                  onChange={(e) => setProjectGoal(e.target.value)}
                   required
                   className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-3 text-sm font-bold text-[#17142B] outline-none transition focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
                 >
