@@ -31,6 +31,7 @@ function CreateProfile() {
   const [role, setRole] = useState(savedProfile?.role || "")
   const [experience, setExperience] = useState(savedProfile?.experience || "")
   const [projectGoal, setProjectGoal] = useState(savedProfile?.projectGoal || "")
+  const [projectBrief, setProjectBrief] = useState(savedProfile?.projectBrief || "")
   const [selectedSkills, setSelectedSkills] = useState(savedProfile?.skills || [])
   const [lookingFor, setLookingFor] = useState(savedProfile?.lookingFor || [])
 
@@ -83,6 +84,7 @@ function CreateProfile() {
       role: roleVal,
       experience: experience || e.target.experience.value,
       projectGoal: projectGoal || e.target.projectGoal.value,
+      projectBrief: projectBrief.trim(),
       skills: selectedSkills,
       lookingFor,
       emoji: userEmoji,
@@ -271,6 +273,28 @@ function CreateProfile() {
                   <option value="Open Source">Open Source</option>
                   <option value="Personal Project">Personal Project</option>
                 </select>
+              </div>
+
+              {/* Project Brief (Optional, max 300 chars) */}
+              <div className="sm:col-span-2">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-700">
+                    <Sparkles size={13} className="text-[#7046D9]" />
+                    Project Brief (Optional)
+                  </label>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    {projectBrief.length}/300
+                  </span>
+                </div>
+                <textarea
+                  name="projectBrief"
+                  value={projectBrief}
+                  onChange={(e) => setProjectBrief(e.target.value)}
+                  maxLength={300}
+                  rows={2}
+                  placeholder="Tell us what you are building... (e.g. Build an AI-powered sustainability platform for our hackathon.)"
+                  className="w-full rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-3 text-sm font-bold text-[#17142B] outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-[#7046D9]"
+                />
               </div>
             </div>
           </section>
