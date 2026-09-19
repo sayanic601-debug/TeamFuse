@@ -20,9 +20,14 @@ import {
   Network,
   Copy,
   Info,
+  Clock,
+  Shield,
+  Activity,
+  GitCommit,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { allCoreSkills, demoUsers } from "../data/teamData"
+import { calculateTeamMetrics, standardDomains } from "../utils/teamMetrics"
 
 function TeamAnalysis() {
   const navigate = useNavigate()
@@ -45,7 +50,7 @@ function TeamAnalysis() {
     }
   })()
 
-  // Ensure current user is ALWAYS member #1 in team, without creating duplicates
+  // Ensure current user is ALWAYS member #1 in team
   const team = useMemo(() => {
     if (profile && !rawTeam.some((m) => m.id === "current-user" || m.isCurrentUser)) {
       const userMember = {
@@ -56,11 +61,7 @@ function TeamAnalysis() {
       }
       return [userMember, ...rawTeam]
     }
-    // If team already has member #1 or profile is inside rawTeam
-    if (rawTeam.length > 0) {
-      return rawTeam
-    }
-    // Fallback if accessed directly with a profile
+    if (rawTeam.length > 0) return rawTeam
     if (profile) {
       return [
         {
@@ -78,56 +79,23 @@ function TeamAnalysis() {
     localStorage.getItem("teamfuseTeamName") ||
     (team[0]?.name ? `${team[0].name}'s Squad` : "Code Titans")
 
-  // ==================== SKILL COVERAGE ====================
-  const coveredSkills = useMemo(() => {
-    return [...new Set(team.flatMap((member) => member.skills || []))]
-  }, [team])
-
-  const missingSkills = useMemo(() => {
-    return allCoreSkills.filter((skill) => !coveredSkills.includes(skill))
-  }, [coveredSkills])
-
-  const skillCoverage = useMemo(() => {
-    if (allCoreSkills.length === 0) return 0
-    return Math.min(
-      100,
-      Math.round((coveredSkills.length / allCoreSkills.length) * 100)
-    )
-  }, [coveredSkills])
-
-  // Roles in current squad
-  const uniqueRoles = useMemo(() => {
-    return [...new Set(team.map((member) => member.role).filter(Boolean))]
-  }, [team])
-
-  // Project Goal Alignment
   const projectGoal = profile?.projectGoal || team[0]?.projectGoal || "Hackathon"
+  const projectBrief = profile?.projectBrief || "Build an intelligent, high-impact product with an unstoppable complementary squad."
 
-  const sameGoalMembers = useMemo(() => {
-    return team.filter((member) => member.projectGoal === projectGoal)
+  // Centralized metrics calculated from shared teamMetrics utility
+  const metrics = useMemo(() => {
+    return calculateTeamMetrics(team, projectGoal)
   }, [team, projectGoal])
 
-  const projectGoalMatch = useMemo(() => {
-    if (team.length === 0) return 0
-    return Math.round((sameGoalMembers.length / team.length) * 100)
-  }, [team, sameGoalMembers])
-
-  // ==================== TEAM COMPATIBILITY ====================
-  const compatibilityScore = useMemo(() => {
-    if (team.length === 0) return 0
-    let score = 0
-    // Skill breadth: up to 35
-    score += Math.min(35, coveredSkills.length * 5)
-    // Role diversity: up to 25
-    score += Math.min(25, uniqueRoles.length * 8)
-    // Goal match: up to 25
-    score += Math.round(projectGoalMatch * 0.25)
-    // Experience mix: up to 15
-    const experiences = new Set(team.map((m) => m.experience))
-    score += Math.min(15, experiences.size * 5)
-
-    return Math.min(100, Math.round(score))
-  }, [team, coveredSkills, uniqueRoles, projectGoalMatch])
+  const skillCoverage = metrics.skillCoverage
+  const coveredSkills = metrics.coveredSkills
+  const missingSkills = metrics.missingSkills
+  const uniqueRoles = metrics.uniqueRoles
+  const roleDistribution = metrics.roleDistribution
+  const projectGoalMatch = metrics.projectGoalMatch
+  const compatibilityScore = metrics.compatibility
+  const readinessScore = metrics.readiness
+  const chemistryScore = metrics.chemistry
 
   const getCompatibilityLabel = () => {
     if (compatibilityScore >= 80) return "Highly Compatible"
@@ -135,75 +103,54 @@ function TeamAnalysis() {
     return "Growing Compatibility"
   }
 
-  // ==================== TEAM READINESS ====================
-  const readinessScore = useMemo(() => {
-    if (team.length === 0) return 0
-    let score = 0
-    score += Math.round(skillCoverage * 0.45)
-    score += Math.min(25, uniqueRoles.length * 8)
-    score += Math.round(projectGoalMatch * 0.2)
-    if (team.length >= 3) {
-      score += 10
-    } else if (team.length === 2) {
-      score += 5
-    }
-    return Math.min(100, Math.round(score))
-  }, [team, skillCoverage, uniqueRoles, projectGoalMatch])
-
   const getReadinessLabel = () => {
     if (readinessScore >= 80) return "READY TO BUILD 🚀"
     if (readinessScore >= 60) return "ALMOST READY 🔥"
     return "NEEDS A BOOST ⚡"
   }
 
-  // ==================== TEAM CHEMISTRY ====================
-  const chemistryScore = useMemo(() => {
-    if (team.length === 0) return 0
-    let score = 40 // Baseline cohesion
-    // Role complementarity
-    if (uniqueRoles.length >= 3) score += 20
-    else if (uniqueRoles.length >= 2) score += 12
-
-    // Shared mission
-    score += Math.round(projectGoalMatch * 0.2)
-
-    // Experience diversity
-    const experiences = new Set(team.map((m) => m.experience))
-    if (experiences.size >= 2) score += 10
-
-    // Skill coverage contribution
-    score += Math.round(skillCoverage * 0.1)
-
-    return Math.min(100, Math.round(score))
-  }, [team, uniqueRoles, projectGoalMatch, skillCoverage])
-
-  // ==================== TEAM BALANCE (ROLE DISTRIBUTION) ====================
-  const roleDistribution = useMemo(() => {
-    const counts = {}
-    team.forEach((m) => {
-      const r = m.role || "Other"
-      counts[r] = (counts[r] || 0) + 1
-    })
-    return counts
-  }, [team])
-
-  // Check key standard tech roles
+  // Standard roles check for Team Balance
   const standardRoles = [
     "Frontend Developer",
     "Backend Developer",
     "ML Engineer",
     "UI/UX Designer",
   ]
+  const missingStandardRoles = standardRoles.filter((role) => !uniqueRoles.includes(role))
 
-  const missingStandardRoles = useMemo(() => {
-    return standardRoles.filter((role) => !uniqueRoles.includes(role))
-  }, [uniqueRoles])
+  // ==================== TEAM EVOLUTION HISTORY ====================
+  const teamEvolution = useMemo(() => {
+    try {
+      const savedHistory = JSON.parse(
+        localStorage.getItem("teamfuseTeamHistory") || "[]"
+      )
+      if (Array.isArray(savedHistory) && savedHistory.length > 0) {
+        return savedHistory
+      }
+    } catch {
+      // fallback
+    }
 
-  // ==================== TEAM RISK RADAR (With Single-Person Dependency) ====================
+    // Reconstruct timeline steps if history wasn't recorded
+    const steps = []
+    for (let i = 1; i <= team.length; i++) {
+      const subTeam = team.slice(0, i)
+      const subMetrics = calculateTeamMetrics(subTeam, projectGoal)
+      const memberName = i === 1 ? "Starting Squad" : `Added ${team[i - 1].name}`
+      steps.push({
+        event: memberName,
+        membersCount: i,
+        coverage: subMetrics.skillCoverage,
+        timestamp: Date.now() - (team.length - i) * 60000,
+      })
+    }
+    return steps
+  }, [team, projectGoal])
+
+  // ==================== TEAM RISK RADAR ====================
   const teamRisks = useMemo(() => {
     const risks = []
 
-    // 1. Small squad check
     if (team.length < 2) {
       risks.push({
         type: "warning",
@@ -213,34 +160,16 @@ function TeamAnalysis() {
       })
     }
 
-    // 2. Single-Person Dependencies detection
-    if (team.length >= 2) {
-      // Check each member's unique skills and roles
-      team.forEach((member) => {
-        const memberSkills = member.skills || []
-        const otherMembers = team.filter((m) => m.id !== member.id)
-        const otherSkills = new Set(otherMembers.flatMap((m) => m.skills || []))
-
-        // Skills that ONLY this member provides
-        const exclusiveSkills = memberSkills.filter((s) => !otherSkills.has(s))
-
-        // Roles that ONLY this member provides
-        const otherRoles = new Set(otherMembers.map((m) => m.role))
-        const isExclusiveRole = !otherRoles.has(member.role)
-
-        if (exclusiveSkills.length >= 2 || (isExclusiveRole && ["Backend Developer", "ML Engineer", "UI/UX Designer"].includes(member.role))) {
-          const depArea = isExclusiveRole ? member.role.split(" ")[0] : exclusiveSkills[0]
-          risks.push({
-            type: "warning",
-            title: `${depArea.toUpperCase()} DEPENDENCY`,
-            message: `Only ${member.name} currently provides ${depArea} capabilities. If ${member.name} leaves, ${depArea} coverage would decrease significantly.`,
-            icon: AlertTriangle,
-          })
-        }
+    // Single-Person Dependencies from metrics
+    metrics.singleDependencies.forEach((dep) => {
+      risks.push({
+        type: "warning",
+        title: `${dep.domain.toUpperCase()} DEPENDENCY`,
+        message: `Only ${dep.member} currently provides ${dep.domain} skills. If ${dep.member} leaves, ${dep.domain} coverage would decrease significantly.`,
+        icon: AlertTriangle,
       })
-    }
+    })
 
-    // 3. Large Skill Gap
     if (missingSkills.length >= 3) {
       risks.push({
         type: "warning",
@@ -250,7 +179,6 @@ function TeamAnalysis() {
       })
     }
 
-    // 4. Role Concentration
     if (uniqueRoles.length === 1 && team.length > 1) {
       risks.push({
         type: "danger",
@@ -260,7 +188,6 @@ function TeamAnalysis() {
       })
     }
 
-    // 5. Mission Misalignment
     if (projectGoalMatch < 50 && team.length > 1) {
       risks.push({
         type: "warning",
@@ -270,8 +197,7 @@ function TeamAnalysis() {
       })
     }
 
-    // 6. Experience Gap
-    const beginnerCount = team.filter((m) => m.experience === "Beginner").length
+    const beginnerCount = metrics.experienceCounts.Beginner || 0
     if (team.length >= 3 && beginnerCount === team.length) {
       risks.push({
         type: "warning",
@@ -282,13 +208,12 @@ function TeamAnalysis() {
     }
 
     return risks
-  }, [team, missingSkills, uniqueRoles, projectGoalMatch])
+  }, [team, metrics, missingSkills, uniqueRoles, projectGoalMatch])
 
-  // ==================== TEAMFUSE ADVISOR (Rule-Based Insights) ====================
+  // ==================== TEAMFUSE ADVISOR ====================
   const advisorInsights = useMemo(() => {
     const insights = []
 
-    // Missing backend check
     if (!uniqueRoles.includes("Backend Developer") && !uniqueRoles.includes("Full Stack Developer")) {
       insights.push({
         id: "missing-backend",
@@ -297,17 +222,15 @@ function TeamAnalysis() {
       })
     }
 
-    // Single person key dependency check
-    const backendMembers = team.filter((m) => m.role === "Backend Developer" || (m.skills || []).includes("Node.js"))
-    if (backendMembers.length === 1 && team.length >= 3) {
+    if (metrics.singleDependencies.length > 0) {
+      const firstDep = metrics.singleDependencies[0]
       insights.push({
-        id: "single-backend",
-        tag: "REDUNDANCY",
-        text: `Backend architecture currently depends entirely on ${backendMembers[0].name}. Consider cross-training or adding full-stack backup.`,
+        id: "dep-risk",
+        tag: "RESILIENCE",
+        text: `${firstDep.domain} currently relies on ${firstDep.member}. Cross-training or recruiting backup will protect team velocity.`,
       })
     }
 
-    // High coverage praise
     if (skillCoverage >= 85) {
       insights.push({
         id: "high-coverage",
@@ -316,22 +239,14 @@ function TeamAnalysis() {
       })
     }
 
-    // Role diversity review
     if (uniqueRoles.length >= 3) {
       insights.push({
         id: "diverse-roles",
         tag: "DIVERSITY",
         text: `Strong cross-functional synergy with ${uniqueRoles.length} distinct specializations active in the squad.`,
       })
-    } else if (team.length >= 3 && uniqueRoles.length < 2) {
-      insights.push({
-        id: "role-concentration",
-        tag: "BALANCE",
-        text: "Your squad has strong representation in one role but limited role diversity. Complementary classes recommended.",
-      })
     }
 
-    // Mission alignment check
     if (projectGoalMatch === 100 && team.length >= 2) {
       insights.push({
         id: "full-alignment",
@@ -340,9 +255,8 @@ function TeamAnalysis() {
       })
     }
 
-    // Return most valuable 1 to 3 insights
     return insights.slice(0, 3)
-  }, [team, uniqueRoles, skillCoverage, projectGoalMatch, projectGoal])
+  }, [uniqueRoles, metrics, skillCoverage, projectGoalMatch, team, projectGoal])
 
   // ==================== SUGGESTED TEAM LEAD ====================
   const getTeamLeadScore = (member) => {
@@ -371,22 +285,25 @@ function TeamAnalysis() {
       .sort((a, b) => b.leadScore - a.leadScore)[0]
   }, [team, projectGoal])
 
-  // ==================== TEAM BADGES ====================
-  const teamBadges = useMemo(() => {
-    const experiences = new Set(team.map((m) => m.experience))
+  // ==================== DATA-DRIVEN TEAM ACHIEVEMENTS (BADGES) ====================
+  const teamAchievements = useMemo(() => {
+    const hasFrontend = uniqueRoles.some((r) => r.includes("Frontend") || r.includes("Full Stack") || r.includes("UI/UX"))
+    const hasBackend = uniqueRoles.some((r) => r.includes("Backend") || r.includes("Full Stack"))
+    const uniqueExpCount = Object.values(metrics.experienceCounts).filter((c) => c > 0).length
+
     return [
       {
-        id: "skill-stacked",
-        title: "SKILL STACKED",
-        description: "High skill coverage across the board",
-        unlocked: skillCoverage >= 80,
-        icon: "⚡",
-        criteria: "Coverage ≥ 80%",
+        id: "full-stack",
+        title: "FULL STACK SQUAD",
+        description: "Frontend + Backend coverage active",
+        unlocked: hasFrontend && hasBackend,
+        icon: "🛠️",
+        criteria: "Frontend + Backend representation",
       },
       {
         id: "role-mix",
         title: "ROLE MIX",
-        description: "Multiple distinct role classes represented",
+        description: "3+ distinct role classes represented",
         unlocked: uniqueRoles.length >= 3,
         icon: "🎭",
         criteria: "≥ 3 distinct roles",
@@ -394,35 +311,41 @@ function TeamAnalysis() {
       {
         id: "mission-aligned",
         title: "MISSION ALIGNED",
-        description: "Strong alignment on project goal",
+        description: "Strong project-goal overlap across squad",
         unlocked: projectGoalMatch >= 70 && team.length >= 2,
         icon: "🎯",
         criteria: "≥ 70% mission fit",
       },
       {
-        id: "diverse-builders",
-        title: "DIVERSE BUILDER MIX",
-        description: "Balanced mix of power levels",
-        unlocked: experiences.size >= 2 && team.length >= 2,
+        id: "skill-stacked",
+        title: "SKILL STACKED",
+        description: "High core skill coverage attained",
+        unlocked: skillCoverage >= 80,
+        icon: "⚡",
+        criteria: "Coverage ≥ 80%",
+      },
+      {
+        id: "diverse-experience",
+        title: "DIVERSE EXPERIENCE",
+        description: "Multiple power levels combined",
+        unlocked: uniqueExpCount >= 2 && team.length >= 2,
         icon: "👑",
         criteria: "≥ 2 power levels",
       },
     ]
-  }, [skillCoverage, uniqueRoles, projectGoalMatch, team])
+  }, [uniqueRoles, metrics, projectGoalMatch, team, skillCoverage])
 
   // ==================== REPLACEMENT & CANDIDATES ====================
   const [replaceMember, setReplaceMember] = useState(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [copyFeedback, setCopyFeedback] = useState(false)
 
-  // Available candidate pool (excluding all members in current squad)
   const availableCandidates = useMemo(() => {
     return demoUsers.filter(
       (candidate) => !team.some((member) => member.id === candidate.id)
     )
   }, [team])
 
-  // Recruitment Recommendations
   const recommendedCandidates = useMemo(() => {
     return availableCandidates
       .map((candidate) => {
@@ -441,10 +364,21 @@ function TeamAnalysis() {
   const handleAddCandidate = (candidate) => {
     const updatedTeam = [...team, candidate]
     localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
+
+    // Record evolution
+    const nextMetrics = calculateTeamMetrics(updatedTeam, projectGoal)
+    const prevHistory = JSON.parse(localStorage.getItem("teamfuseTeamHistory") || "[]")
+    const newEntry = {
+      event: `Added ${candidate.name}`,
+      membersCount: updatedTeam.length,
+      coverage: nextMetrics.skillCoverage,
+      timestamp: Date.now(),
+    }
+    localStorage.setItem("teamfuseTeamHistory", JSON.stringify([...prevHistory, newEntry]))
+
     window.location.reload()
   }
 
-  // Prioritized candidates for replacement
   const prioritizedCandidates = useMemo(() => {
     return availableCandidates
       .map((candidate) => {
@@ -463,7 +397,6 @@ function TeamAnalysis() {
   }, [availableCandidates, missingSkills, projectGoal, replaceMember])
 
   const handleReplaceMember = (oldMember, newMember) => {
-    // Current user can NEVER be replaced
     if (oldMember.id === "current-user" || oldMember.isCurrentUser) return
 
     const updatedTeam = team.map((member) =>
@@ -471,18 +404,30 @@ function TeamAnalysis() {
     )
 
     localStorage.setItem("teamfuseTeam", JSON.stringify(updatedTeam))
+
+    const nextMetrics = calculateTeamMetrics(updatedTeam, projectGoal)
+    const prevHistory = JSON.parse(localStorage.getItem("teamfuseTeamHistory") || "[]")
+    const newEntry = {
+      event: `Replaced ${oldMember.name} with ${newMember.name}`,
+      membersCount: updatedTeam.length,
+      coverage: nextMetrics.skillCoverage,
+      timestamp: Date.now(),
+    }
+    localStorage.setItem("teamfuseTeamHistory", JSON.stringify([...prevHistory, newEntry]))
+
     setReplaceMember(null)
     window.location.reload()
   }
 
-  // Handle Copy Squad Summary
   const handleCopySummary = () => {
     const summaryText = `⚡ TEAMFUSE SQUAD: ${teamName}\n` +
+      `Mission: "${projectBrief}"\n` +
+      `Goal: ${projectGoal}\n` +
       `Builders (${team.length}): ${team.map((m) => `${m.name} (${m.role})`).join(", ")}\n` +
       `Skill Coverage: ${skillCoverage}%\n` +
       `Team Fit: ${compatibilityScore}%\n` +
       `Readiness: ${readinessScore}%\n` +
-      `Mission: ${projectGoal}\n` +
+      `Chemistry: ${chemistryScore}%\n` +
       `Assembled on TeamFuse 🚀`
 
     navigator.clipboard.writeText(summaryText)
@@ -507,23 +452,16 @@ function TeamAnalysis() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#F7A6C7] text-3xl shadow-[3px_3px_0_#17142B]">
               💥
             </div>
-
-            <div className="mt-5 inline-block rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
-              YOUR SQUAD IS EMPTY
-            </div>
-
-            <h1 className="mt-3 text-3xl font-black uppercase text-[#17142B]">
+            <h1 className="mt-4 text-3xl font-black uppercase text-[#17142B]">
               Your Squad Is Empty
             </h1>
-
             <p className="mt-2 text-sm font-bold text-slate-600 leading-relaxed">
-              Pick teammates whose skills complement yours to activate your team scoreboard.
+              Recruit teammates whose skills complement yours to activate your team intelligence report.
             </p>
-
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <div className="mt-8 flex justify-center">
               <button
                 onClick={() => navigate("/find-teammates")}
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-6 py-3 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5"
               >
                 BUILD YOUR SQUAD
                 <ArrowRight size={15} />
@@ -538,7 +476,7 @@ function TeamAnalysis() {
   return (
     <div className="min-h-screen bg-[#FFF8E8] px-5 py-8 pb-20 text-[#17142B] selection:bg-[#FFD86B] selection:text-[#17142B]">
       <div className="mx-auto max-w-6xl">
-        {/* Header Navigation & Comic Issue Badge */}
+        {/* Header Navigation */}
         <header className="mb-8 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-4">
           <button
             onClick={() => navigate("/find-teammates")}
@@ -559,19 +497,19 @@ function TeamAnalysis() {
 
             <div className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#17142B] bg-[#FFD86B] px-3.5 py-1 text-xs font-black uppercase shadow-[2px_2px_0_#17142B]">
               <Zap size={13} fill="currentColor" />
-              FINAL REPORT · ISSUE #01
+              INTELLIGENCE REPORT
             </div>
           </div>
         </header>
 
         {/* ==================== 1. TEAM IDENTITY ==================== */}
-        <section className="relative mb-8 overflow-hidden rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] p-6 shadow-[6px_6px_0_#17142B] sm:p-8">
+        <section className="relative mb-6 overflow-hidden rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] p-6 shadow-[6px_6px_0_#17142B] sm:p-8">
           <div className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 bg-halftone-purple opacity-40" />
 
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-3 py-1 text-xs font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
               <Zap size={14} fill="currentColor" />
-              ⚡ TEAMFUSE SQUAD DOSSIER
+              ⚡ TEAM IDENTITY
             </div>
 
             <div className="flex items-center gap-2">
@@ -596,11 +534,10 @@ function TeamAnalysis() {
               {teamName}
             </h1>
             <p className="mt-1.5 text-xs font-bold text-slate-600 sm:text-sm">
-              “Built around {team[0]?.name || "You"}. Powered by complementary superpowers.”
+              Built around {team[0]?.name || "You"} · Powered by complementary abilities.
             </p>
           </div>
 
-          {/* Prominent Team Specs Bar */}
           <div className="mt-6 flex flex-wrap items-center gap-2.5 border-t-2 border-[#17142B]/10 pt-4 text-xs font-black uppercase tracking-wider text-slate-700">
             <span className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-[#17142B] shadow-[1px_1px_0_#17142B]">
               {team.length} {team.length === 1 ? "BUILDER" : "BUILDERS"}
@@ -609,43 +546,57 @@ function TeamAnalysis() {
               {skillCoverage}% SKILL COVERAGE
             </span>
             <span className="rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-[#7046D9] shadow-[1px_1px_0_#17142B]">
-              MISSION: {projectGoal}
-            </span>
-            <span className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3.5 py-1.5 text-[#17142B] shadow-[1px_1px_0_#17142B]">
-              CHEMISTRY: {chemistryScore}%
+              GOAL: {projectGoal}
             </span>
           </div>
         </section>
 
-        {/* Solo Builder Notice */}
-        {team.length === 1 && (
-          <section className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border-2 border-[#17142B] bg-[#FFF9EF] p-5 shadow-[4px_4px_0_#17142B]">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFD86B] text-2xl shadow-[2px_2px_0_#17142B]">
-                ⚡
+        {/* ==================== 2. TEAM MISSION ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <Target size={22} />
               </div>
               <div>
-                <p className="text-sm font-black uppercase text-[#17142B]">
-                  You're currently building solo!
-                </p>
-                <p className="text-xs font-bold text-slate-600">
-                  Recruit allies whose technical abilities complement yours to unlock full synergy.
-                </p>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#7046D9]">
+                  TEAM MISSION
+                </span>
+                <h2 className="mt-0.5 text-lg font-black text-[#17142B] sm:text-xl">
+                  “{projectBrief}”
+                </h2>
+                <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <span className="rounded-md border border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 font-black uppercase text-[#17142B]">
+                    {projectGoal}
+                  </span>
+                  <span>·</span>
+                  <span>{projectGoalMatch}% squad mission alignment</span>
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/find-teammates")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
-            >
-              <UserPlus size={14} />
-              <span>RECRUIT TEAMMATES</span>
-            </button>
-          </section>
-        )}
 
-        {/* ==================== STAT BLOCKS GRID (Power, Fit, Readiness, Chemistry) ==================== */}
+            {/* Team Goal Progress Box */}
+            <div className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-4 shadow-[2px_2px_0_#17142B] sm:min-w-[260px]">
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#17142B]">
+                <span>{projectGoal} Readiness</span>
+                <span className="text-[#7046D9]">{readinessScore}%</span>
+              </div>
+              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border border-[#17142B] bg-white">
+                <div
+                  className="h-full bg-[#7046D9] transition-all duration-500"
+                  style={{ width: `${readinessScore}%` }}
+                />
+              </div>
+              <p className="mt-2 text-[10px] font-bold text-slate-500">
+                TeamFuse readiness indicator based on core coverage.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== 3 & 4 & 5. STATS SUMMARY (Power, Fit, Readiness, Chemistry) ==================== */}
         <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Skill Power */}
+          {/* 3. Team Power */}
           <div className="rounded-2xl border-2 border-[#17142B] bg-[#BDE7D6] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
@@ -665,12 +616,12 @@ function TeamAnalysis() {
             </div>
           </div>
 
-          {/* Team Fit / Compatibility */}
+          {/* 4. Team Compatibility */}
           <div className="rounded-2xl border-2 border-[#17142B] bg-[#F7A6C7] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
-                  TEAM FIT
+                  TEAM COMPATIBILITY
                 </p>
                 <p className="mt-1 text-3xl font-black text-[#17142B]">
                   {compatibilityScore}%
@@ -685,12 +636,12 @@ function TeamAnalysis() {
             </div>
           </div>
 
-          {/* Readiness */}
+          {/* 5. Team Readiness */}
           <div className="rounded-2xl border-2 border-[#17142B] bg-[#DCCFFF] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-wider text-[#17142B]/70">
-                  READINESS
+                  TEAM READINESS
                 </p>
                 <p className="mt-1 text-3xl font-black text-[#17142B]">
                   {readinessScore}%
@@ -705,7 +656,7 @@ function TeamAnalysis() {
             </div>
           </div>
 
-          {/* Team Chemistry Indicator */}
+          {/* 6. Team Chemistry */}
           <div className="rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] p-5 shadow-[4px_4px_0_#17142B]">
             <div className="flex items-center justify-between">
               <div>
@@ -726,141 +677,88 @@ function TeamAnalysis() {
           </div>
         </section>
 
-        {/* Side-by-Side: Team Power Meter & Ready Check */}
-        <section className="mb-10 grid gap-6 lg:grid-cols-2">
-          {/* Panel 1: Team Power Meter */}
-          <div className="flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] shadow-[1px_1px_0_#17142B]">
-                      <Sparkles size={18} />
-                    </div>
-                    <h2 className="text-xl font-black uppercase tracking-wide text-[#17142B]">
-                      TEAM COMPATIBILITY
-                    </h2>
-                  </div>
-                  <p className="mt-2 text-xs font-bold text-slate-500">
-                    Synergy calculated from shared skill sets, role diversity, and mission fit.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-3 py-1 text-xl font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
-                  {compatibilityScore}%
-                </div>
+        {/* ==================== 6. TRANSPARENT TEAM CHEMISTRY BREAKDOWN ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#17142B]/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                <Flame size={16} />
               </div>
-
-              {/* Progress Meter */}
-              <div className="mt-5 h-4 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
-                <div
-                  className="h-full rounded-full bg-[#7046D9] transition-all duration-700"
-                  style={{ width: `${compatibilityScore}%` }}
-                />
-              </div>
-
-              <div className="mt-3.5 flex items-center gap-2 text-xs font-black uppercase text-[#17142B]">
-                <ShieldCheck size={16} className="text-[#7046D9]" />
-                <span>{getCompatibilityLabel()}</span>
-              </div>
-            </div>
-
-            {/* Supporting Breakdown */}
-            <div className="mt-6 grid grid-cols-3 gap-3 border-t-2 border-[#17142B]/10 pt-4 text-center">
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
-                <p className="text-xl font-black text-[#17142B]">
-                  {coveredSkills.length}
-                </p>
-                <p className="text-[10px] font-black uppercase text-slate-500">
-                  Skills
-                </p>
-              </div>
-
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#FFD86B]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
-                <p className="text-xl font-black text-[#17142B]">
-                  {uniqueRoles.length}
-                </p>
-                <p className="text-[10px] font-black uppercase text-slate-500">
-                  Classes
-                </p>
-              </div>
-
-              <div className="rounded-xl border-2 border-[#17142B] bg-[#DCCFFF]/40 p-2.5 shadow-[2px_2px_0_#17142B]">
-                <p className="text-xl font-black text-[#17142B]">
-                  {projectGoalMatch}%
-                </p>
-                <p className="text-[10px] font-black uppercase text-slate-500">
-                  Goal Fit
+              <div>
+                <h3 className="text-base font-black uppercase text-[#17142B]">
+                  TEAM CHEMISTRY BREAKDOWN
+                </h3>
+                <p className="text-xs font-bold text-slate-500">
+                  Transparent factor scoring powering squad cohesion
                 </p>
               </div>
             </div>
+
+            <span className="text-sm font-black text-[#7046D9]">
+              {chemistryScore} / 100 POINTS
+            </span>
           </div>
 
-          {/* Panel 2: Ready Check & Chemistry Note */}
-          <div className="flex flex-col justify-between rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                      <Zap size={18} fill="currentColor" />
-                    </div>
-                    <h2 className="text-xl font-black uppercase tracking-wide text-[#17142B]">
-                      READY CHECK ⚡
-                    </h2>
-                  </div>
-                  <p className="mt-2 text-xs font-bold text-slate-500">
-                    Game-style readiness evaluation measuring squad size, core coverage, and building capacity.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] px-3 py-1 text-xl font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
-                  {readinessScore}%
-                </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 shadow-[2px_2px_0_#17142B]">
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#17142B]">
+                <span>Role Complementarity</span>
+                <span className="text-[#7046D9]">+{metrics.chemistryBreakdown.rolePoints}</span>
               </div>
-
-              <div className="mt-5 h-4 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
-                <div
-                  className="h-full rounded-full bg-[#17142B] transition-all duration-700"
-                  style={{ width: `${readinessScore}%` }}
-                />
-              </div>
-
-              <div className="mt-3.5 flex items-center gap-2 text-xs font-black uppercase text-[#17142B]">
-                <Star size={16} fill="currentColor" className="text-amber-500" />
-                <span>{getReadinessLabel()}</span>
-              </div>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">
+                {uniqueRoles.length} unique role classes active
+              </p>
             </div>
 
-            <div className="mt-6 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3.5 shadow-[2px_2px_0_#17142B]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-[#17142B]">
-                  TEAM CHEMISTRY: {chemistryScore}%
-                </span>
-                <span className="text-[10px] font-black uppercase text-[#7046D9]">
-                  COHESION
-                </span>
+            <div className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 shadow-[2px_2px_0_#17142B]">
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#17142B]">
+                <span>Skill Diversity</span>
+                <span className="text-[#7046D9]">+{metrics.chemistryBreakdown.skillPoints}</span>
               </div>
-              <p className="mt-1 text-[11px] font-bold text-slate-600">
-                “Based on role complementarity, skill coverage and shared goals.” (TeamFuse-generated indicator)
+              <p className="mt-1 text-[10px] font-bold text-slate-500">
+                {coveredSkills.length} core competencies equipped
+              </p>
+            </div>
+
+            <div className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 shadow-[2px_2px_0_#17142B]">
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#17142B]">
+                <span>Goal Alignment</span>
+                <span className="text-[#7046D9]">+{metrics.chemistryBreakdown.goalPoints}</span>
+              </div>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">
+                {projectGoalMatch}% shared mission focus
+              </p>
+            </div>
+
+            <div className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 shadow-[2px_2px_0_#17142B]">
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#17142B]">
+                <span>Experience Mix</span>
+                <span className="text-[#7046D9]">+{metrics.chemistryBreakdown.expPoints}</span>
+              </div>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">
+                Balanced builder power levels
               </p>
             </div>
           </div>
+
+          <p className="mt-3 text-[10px] font-bold text-slate-400">
+            * TeamFuse-generated indicator based on team composition and skill distribution.
+          </p>
         </section>
 
-        {/* ==================== 5. TEAM BALANCE (ROLE DISTRIBUTION) ==================== */}
-        <section className="mb-10 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+        {/* ==================== 7. TEAM BALANCE ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#17142B]/10 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#DCCFFF] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                <Briefcase size={18} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#DCCFFF] text-[#17142B]">
+                <Briefcase size={16} />
               </div>
               <div>
-                <h2 className="text-xl font-black uppercase text-[#17142B]">
+                <h3 className="text-base font-black uppercase text-[#17142B]">
                   TEAM BALANCE
-                </h2>
+                </h3>
                 <p className="text-xs font-bold text-slate-500">
-                  Role class distribution and squad structural diversity
+                  Role class distribution and squad structural balance
                 </p>
               </div>
             </div>
@@ -870,7 +768,6 @@ function TeamAnalysis() {
             </span>
           </div>
 
-          {/* Role Distribution Bar Visualizer */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(roleDistribution).map(([roleName, count]) => (
               <div
@@ -885,7 +782,6 @@ function TeamAnalysis() {
                     {count}
                   </span>
                 </div>
-                {/* Visual bar */}
                 <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full border border-[#17142B] bg-white">
                   <div
                     className="h-full bg-[#7046D9]"
@@ -896,11 +792,10 @@ function TeamAnalysis() {
             ))}
           </div>
 
-          {/* Factual Absence Notices */}
           {missingStandardRoles.length > 0 && (
             <div className="mt-4 rounded-xl border border-[#17142B]/20 bg-[#FFF9EF] p-3">
               <p className="text-xs font-bold text-slate-700">
-                <span className="font-black text-[#17142B]">Note: </span>
+                <span className="font-black text-[#17142B]">Factual observation: </span>
                 {missingStandardRoles.map((role, idx) => (
                   <span key={role}>
                     Your squad currently has no {role} specialist{idx < missingStandardRoles.length - 1 ? " · " : "."}
@@ -911,19 +806,83 @@ function TeamAnalysis() {
           )}
         </section>
 
-        {/* ==================== 6. TEAM RISK RADAR ==================== */}
-        <section className="mb-10">
-          <div className="mb-5 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+        {/* ==================== 8. TEAM RESILIENCE ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#17142B]/10 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                <AlertTriangle size={18} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B]">
+                <Shield size={16} />
               </div>
               <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
-                  TEAM RISK RADAR
-                </h2>
+                <h3 className="text-base font-black uppercase text-[#17142B]">
+                  TEAM RESILIENCE
+                </h3>
                 <p className="text-xs font-bold text-slate-500">
-                  Structural risks and single-person key dependencies
+                  Redundancy mapping across core technical capabilities
+                </p>
+              </div>
+            </div>
+
+            <span className="text-xs font-black uppercase text-[#7046D9]">
+              REDUNDANCY CHECK
+            </span>
+          </div>
+
+          {/* Contributor Counts per Technical Domain */}
+          <div className="grid gap-3 sm:grid-cols-5">
+            {Object.entries(metrics.domainContributors).map(([domainName, count]) => (
+              <div
+                key={domainName}
+                className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 text-center shadow-[2px_2px_0_#17142B]"
+              >
+                <p className="text-[10px] font-black uppercase text-slate-500">{domainName}</p>
+                <p className="mt-1 text-xl font-black text-[#17142B]">{count}</p>
+                <span
+                  className={`mt-1 inline-block rounded px-1.5 py-0.2 text-[9px] font-black uppercase ${
+                    count > 1
+                      ? "bg-[#BDE7D6] text-[#17142B]"
+                      : count === 1
+                      ? "bg-[#FFD86B] text-[#17142B]"
+                      : "bg-slate-200 text-slate-500"
+                  }`}
+                >
+                  {count > 1 ? "REDUNDANT" : count === 1 ? "1 BUILDER" : "OPEN"}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Single Person Dependency Structural Observation */}
+          {metrics.singleDependencies.length > 0 && (
+            <div className="mt-4 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-4 shadow-[2px_2px_0_#17142B]">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle size={17} className="text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-black uppercase text-[#17142B]">
+                    SINGLE-PERSON DEPENDENCY
+                  </h4>
+                  <p className="mt-0.5 text-xs font-bold text-slate-700">
+                    {metrics.singleDependencies[0].domain} currently depends on one teammate ({metrics.singleDependencies[0].member}). If {metrics.singleDependencies[0].member} leaves, {metrics.singleDependencies[0].domain} coverage would decrease significantly.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ==================== 9. TEAM RISK RADAR ==================== */}
+        <section className="mb-8">
+          <div className="mb-4 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#F7A6C7] text-[#17142B]">
+                <AlertTriangle size={16} />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase tracking-tight text-[#17142B]">
+                  TEAM RISK RADAR
+                </h3>
+                <p className="text-xs font-bold text-slate-500">
+                  Potential gaps and structural vulnerabilities
                 </p>
               </div>
             </div>
@@ -940,41 +899,39 @@ function TeamAnalysis() {
           </div>
 
           {teamRisks.length === 0 ? (
-            <div className="rounded-2xl border-2 border-[#17142B] bg-[#BDE7D6] p-6 shadow-[4px_4px_0_#17142B]">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-[#17142B] shadow-[2px_2px_0_#17142B]">
-                  <ShieldCheck size={24} />
-                </div>
+            <div className="rounded-2xl border-2 border-[#17142B] bg-[#BDE7D6] p-5 shadow-[4px_4px_0_#17142B]">
+              <div className="flex items-center gap-3.5">
+                <ShieldCheck size={22} />
                 <div>
-                  <h3 className="text-lg font-black uppercase">
+                  <h4 className="text-sm font-black uppercase">
                     Squad Looks Well Balanced! 🎉
-                  </h3>
-                  <p className="mt-1 text-xs font-bold text-[#17142B]/70">
-                    No single-person bottlenecks or critical structural vulnerabilities detected.
+                  </h4>
+                  <p className="text-xs font-bold text-[#17142B]/70">
+                    No single-person bottlenecks or critical structural risks detected.
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3.5 sm:grid-cols-2">
               {teamRisks.map((risk, index) => {
                 const RiskIcon = risk.icon
                 return (
                   <div
                     key={`${risk.title}-${index}`}
-                    className={`rounded-2xl border-2 border-[#17142B] p-5 shadow-[4px_4px_0_#17142B] ${
+                    className={`rounded-2xl border-2 border-[#17142B] p-4 shadow-[3px_3px_0_#17142B] ${
                       risk.type === "danger" ? "bg-[#F7A6C7]" : "bg-[#FFD86B]"
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white shadow-[2px_2px_0_#17142B]">
-                        <RiskIcon size={19} />
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white shadow-[1px_1px_0_#17142B]">
+                        <RiskIcon size={17} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-black uppercase">
+                        <h4 className="text-xs font-black uppercase">
                           {risk.title}
-                        </h3>
-                        <p className="mt-1 text-xs font-bold leading-relaxed text-[#17142B]/80">
+                        </h4>
+                        <p className="mt-0.5 text-xs font-bold leading-relaxed text-[#17142B]/80">
                           {risk.message}
                         </p>
                       </div>
@@ -986,19 +943,19 @@ function TeamAnalysis() {
           )}
         </section>
 
-        {/* ==================== 7. TEAMFUSE ADVISOR ==================== */}
-        <section className="mb-10 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+        {/* ==================== 10. TEAMFUSE ADVISOR ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
           <div className="mb-4 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                <Compass size={18} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                <Compass size={16} />
               </div>
               <div>
-                <h2 className="text-xl font-black uppercase text-[#17142B]">
+                <h3 className="text-base font-black uppercase text-[#17142B]">
                   TEAMFUSE ADVISOR
-                </h2>
+                </h3>
                 <p className="text-xs font-bold text-slate-500">
-                  Targeted rule-based strategic recommendations for your squad
+                  Targeted rule-based strategic recommendations
                 </p>
               </div>
             </div>
@@ -1027,84 +984,17 @@ function TeamAnalysis() {
           </div>
         </section>
 
-        {/* ==================== 8. TEAM DEPENDENCY MAP ==================== */}
-        <section className="mb-10 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
-          <div className="mb-4 flex items-center gap-2.5 border-b-2 border-[#17142B]/10 pb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-              <Network size={18} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black uppercase text-[#17142B]">
-                TEAM RELATIONSHIP & DEPENDENCY MAP
-              </h2>
-              <p className="text-xs font-bold text-slate-500">
-                Visual alignment between the founder and recruited allies
-              </p>
-            </div>
-          </div>
-
-          {/* Simple Clean Visual Relationship Tree */}
-          <div className="flex flex-col items-center py-4">
-            {/* Top Root Node: FOUNDER (YOU) */}
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-2.5 rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] px-5 py-3 shadow-[3px_3px_0_#17142B]">
-                <span className="text-2xl">{team[0]?.emoji}</span>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-black uppercase text-[#17142B]">
-                      {team[0]?.name}
-                    </span>
-                    <span className="rounded bg-[#17142B] px-1 py-0.2 text-[8px] font-black text-white">
-                      FOUNDER (YOU)
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-black uppercase text-[#7046D9]">
-                    {team[0]?.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Connecting vertical trunk if allies exist */}
-              {team.length > 1 && (
-                <div className="h-6 w-0.5 border-l-2 border-dashed border-[#17142B]" />
-              )}
-            </div>
-
-            {/* Allies row */}
-            {team.length > 1 && (
-              <div className="flex flex-wrap justify-center gap-4 pt-1">
-                {team.slice(1).map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-2.5 rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] px-4 py-2.5 shadow-[2px_2px_0_#17142B]"
-                  >
-                    <span className="text-xl">{member.emoji}</span>
-                    <div>
-                      <p className="text-xs font-black uppercase text-[#17142B]">
-                        {member.name}
-                      </p>
-                      <p className="text-[10px] font-black uppercase text-[#7046D9]">
-                        {member.role}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ==================== 9. TEAM MEMBERS SECTION ==================== */}
-        <section className="mb-10">
-          <div className="mb-5 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+        {/* ==================== 11. TEAM MEMBERS ==================== */}
+        <section className="mb-8">
+          <div className="mb-4 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                <Users size={18} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                <Users size={16} />
               </div>
               <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+                <h3 className="text-base font-black uppercase tracking-tight text-[#17142B]">
                   Team Members
-                </h2>
+                </h3>
                 <p className="text-xs font-bold text-slate-500">
                   Active builder roster powering your squad
                 </p>
@@ -1113,14 +1003,14 @@ function TeamAnalysis() {
 
             <button
               onClick={() => navigate("/find-teammates")}
-              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5"
             >
               <UserPlus size={14} />
               Add Teammates
             </button>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {team.map((member) => {
               const isCurrentUser =
                 member.id === "current-user" || Boolean(member.isCurrentUser)
@@ -1132,13 +1022,12 @@ function TeamAnalysis() {
                     isCurrentUser
                       ? "border-[#7046D9] ring-2 ring-[#FFD86B]/60 bg-[#FFFDF5]"
                       : "border-[#17142B] bg-white"
-                  } p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-1 hover:shadow-[6px_6px_0_#17142B]`}
+                  } p-5 shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#17142B]`}
                 >
                   <div>
-                    {/* Header */}
                     <div className="mb-3 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {isCurrentUser ? "PLAYER 1" : `MEMBER #${member.id}`}
+                        {isCurrentUser ? "FOUNDER" : `MEMBER #${member.id}`}
                       </span>
                       {isCurrentUser ? (
                         <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
@@ -1152,17 +1041,17 @@ function TeamAnalysis() {
                     </div>
 
                     <div className="flex items-start gap-3.5">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-3xl shadow-[2px_2px_0_#17142B]">
+                      <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] text-2xl shadow-[2px_2px_0_#17142B]">
                         {member.emoji}
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="truncate text-lg font-black uppercase text-[#17142B]">
+                          <h4 className="truncate text-base font-black uppercase text-[#17142B]">
                             {member.name}
-                          </h3>
+                          </h4>
                           {isCurrentUser && (
-                            <span className="rounded border-2 border-[#17142B] bg-[#FFD86B] px-1.5 py-0.2 text-[8px] font-black uppercase text-[#17142B]">
+                            <span className="rounded border-2 border-[#17142B] bg-[#FFD86B] px-1.5 py-0.2 text-[8px] font-black uppercase">
                               YOU
                             </span>
                           )}
@@ -1183,12 +1072,11 @@ function TeamAnalysis() {
                       </div>
                     </div>
 
-                    {/* Skills Chips */}
                     <div className="mt-4 flex flex-wrap gap-1.5 border-t-2 border-[#17142B]/10 pt-3">
                       {(member.skills || []).map((skill) => (
                         <span
                           key={skill}
-                          className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[11px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
+                          className="rounded-md border-2 border-[#17142B] bg-[#FFF8E8] px-2 py-0.5 text-[10px] font-black text-slate-800 shadow-[1px_1px_0_#17142B]"
                         >
                           {skill}
                         </span>
@@ -1196,12 +1084,11 @@ function TeamAnalysis() {
                     </div>
                   </div>
 
-                  {/* Replace Button: Allowed ONLY for other teammates, NEVER for current user */}
                   {!isCurrentUser ? (
                     <button
                       type="button"
                       onClick={() => setReplaceMember(member)}
-                      className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFF8E8] hover:shadow-[3px_3px_0_#17142B]"
+                      className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-white py-2 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFF8E8]"
                     >
                       <UserPlus size={14} className="text-[#7046D9]" />
                       <span>REPLACE</span>
@@ -1217,126 +1104,46 @@ function TeamAnalysis() {
           </div>
         </section>
 
-        {/* ==================== 10. SUGGESTED TEAM LEAD ==================== */}
-        {teamLead && (
-          <section className="relative mb-10 overflow-hidden rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] p-6 shadow-[5px_5px_0_#17142B]">
-            <div className="relative">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_#17142B]">
-                    <Star size={13} fill="currentColor" />
-                    Suggested Team Lead
-                  </div>
-                  <p className="mt-2 text-xs font-bold text-[#17142B]/70">
-                    Calculated based on experience, skill count, role leadership, and mission alignment.
-                  </p>
-                </div>
-
-                <div className="hidden rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-2 text-center text-white shadow-[2px_2px_0_#17142B] sm:block">
-                  <p className="text-[9px] font-black uppercase tracking-widest">
-                    Lead Score
-                  </p>
-                  <p className="text-xl font-black">{teamLead.leadScore}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-5 rounded-xl border-2 border-[#17142B] bg-white p-4 shadow-[3px_3px_0_#17142B] sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#DCCFFF] text-3xl shadow-[2px_2px_0_#17142B]">
-                    {teamLead.emoji}
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-xl font-black uppercase text-[#17142B]">
-                        {teamLead.name}
-                      </h3>
-                      {(teamLead.id === "current-user" || teamLead.isCurrentUser) && (
-                        <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                          YOU
-                        </span>
-                      )}
-                      <span className="rounded-md border-2 border-[#17142B] bg-[#BDE7D6] px-2 py-0.5 text-[9px] font-black uppercase shadow-[1px_1px_0_#17142B]">
-                        Lead Candidate
-                      </span>
-                    </div>
-
-                    <p className="mt-0.5 text-xs font-black uppercase text-[#7046D9]">
-                      {teamLead.role}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="rounded-md border border-[#17142B] bg-[#FFF8E8] px-2 py-1 text-[10px] font-bold">
-                        {teamLead.experience}
-                      </span>
-                      <span className="rounded-md border border-[#17142B] bg-[#FFF8E8] px-2 py-1 text-[10px] font-bold">
-                        {teamLead.skills?.length || 0} Skills
-                      </span>
-                      {teamLead.projectGoal === projectGoal && (
-                        <span className="rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-1 text-[10px] font-black uppercase">
-                          Mission Aligned
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 sm:hidden">
-                  <div className="flex-1 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-2 text-center text-white shadow-[2px_2px_0_#17142B]">
-                    <p className="text-[9px] font-black uppercase tracking-widest">
-                      Lead Score
-                    </p>
-                    <p className="text-xl font-black">{teamLead.leadScore}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ==================== 11. SKILL BREAKDOWN & RECRUITMENT ==================== */}
-        <section className="mb-10">
-          <div className="mb-5 border-b-2 border-[#17142B]/10 pb-3">
-            <h2 className="text-2xl font-black uppercase tracking-tight text-[#17142B]">
+        {/* ==================== 12. SKILL BREAKDOWN ==================== */}
+        <section className="mb-8">
+          <div className="mb-4 border-b-2 border-[#17142B]/10 pb-3">
+            <h3 className="text-base font-black uppercase tracking-tight text-[#17142B]">
               SKILL BREAKDOWN & RECRUITMENT
-            </h2>
+            </h3>
             <p className="text-xs font-bold text-slate-500">
-              Covered technical superpowers vs missing gaps
+              Superpowers currently unlocked vs missing capabilities
             </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Panel LEFT: SKILLS WE HAVE */}
+            {/* SKILLS WE HAVE */}
             <div className="rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                    <Check size={18} />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] text-[#17142B]">
+                    <Check size={16} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black uppercase text-[#17142B]">
+                    <h4 className="text-sm font-black uppercase text-[#17142B]">
                       SKILLS WE HAVE
-                    </h3>
+                    </h4>
                     <p className="text-xs font-bold text-slate-500">
                       {coveredSkills.length} of {allCoreSkills.length} abilities covered
                     </p>
                   </div>
                 </div>
-
-                <span className="rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] px-2.5 py-1 text-sm font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                <span className="rounded-lg border-2 border-[#17142B] bg-[#BDE7D6] px-2.5 py-1 text-xs font-black text-[#17142B] shadow-[2px_2px_0_#17142B]">
                   {skillCoverage}%
                 </span>
               </div>
 
-              {/* Progress bar */}
               <div className="mb-5 h-3 w-full overflow-hidden rounded-full border-2 border-[#17142B] bg-[#FFF8E8]">
                 <div
-                  className="h-full rounded-full bg-[#17142B] transition-all duration-700"
+                  className="h-full bg-[#17142B] transition-all duration-500"
                   style={{ width: `${skillCoverage}%` }}
                 />
               </div>
 
-              {/* Unlocked Skill Chips */}
               <div className="flex flex-wrap gap-2">
                 {coveredSkills.map((skill) => (
                   <span
@@ -1350,26 +1157,24 @@ function TeamAnalysis() {
               </div>
             </div>
 
-            {/* Panel RIGHT: SKILLS WE NEED & RECRUITMENT ALERT */}
+            {/* SKILLS WE NEED & RECRUITMENT ALERT */}
             <div className="rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
               <div className="mb-4 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-black uppercase text-[#17142B]">
+                  <h4 className="text-sm font-black uppercase text-[#17142B]">
                     SKILLS WE NEED
-                  </h3>
+                  </h4>
                   <p className="text-xs font-bold text-slate-500">
-                    Missing skill areas to complete your squad
+                    Open capability areas to complete your squad
                   </p>
                 </div>
-
                 {missingSkills.length > 0 && (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                    <AlertTriangle size={16} />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                    <AlertTriangle size={15} />
                   </div>
                 )}
               </div>
 
-              {/* Missing skills chips */}
               <div className="flex flex-wrap gap-2">
                 {missingSkills.length > 0 ? (
                   missingSkills.map((skill) => (
@@ -1381,70 +1186,52 @@ function TeamAnalysis() {
                     </span>
                   ))
                 ) : (
-                  <div className="w-full rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] p-4 text-center shadow-[2px_2px_0_#17142B]">
+                  <div className="w-full rounded-xl border-2 border-[#17142B] bg-[#BDE7D6] p-4 text-center">
                     <p className="text-sm font-black uppercase text-[#17142B]">
                       Full Skill Coverage Achieved! 🎉
-                    </p>
-                    <p className="text-xs font-bold text-slate-700 mt-0.5">
-                      Your squad covers all standard core technical domains.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Recruitment Alert: Candidates who fill gaps */}
+              {/* Recruitment Alert */}
               {missingSkills.length > 0 && recommendedCandidates.length > 0 && (
-                <div className="mt-6 border-t-2 border-[#17142B] pt-5">
+                <div className="mt-5 border-t-2 border-[#17142B] pt-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <h4 className="flex items-center gap-1.5 text-sm font-black uppercase text-[#17142B]">
-                        <Zap size={14} className="text-[#7046D9]" fill="currentColor" />
-                        RECRUITMENT RECOMMENDATIONS
-                      </h4>
-                      <p className="text-[11px] font-bold text-slate-500">
-                        Allies who provide the missing capabilities above
-                      </p>
-                    </div>
-
-                    <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                      {recommendedCandidates.length} RECRUITS
+                    <h5 className="flex items-center gap-1.5 text-xs font-black uppercase text-[#17142B]">
+                      <Zap size={13} className="text-[#7046D9]" fill="currentColor" />
+                      RECRUITMENT RECOMMENDATIONS
+                    </h5>
+                    <span className="rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase">
+                      {recommendedCandidates.length} CANDIDATES
                     </span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {recommendedCandidates.map((candidate) => (
                       <div
                         key={candidate.id}
-                        className="rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3.5 shadow-[3px_3px_0_#17142B]"
+                        className="flex items-center justify-between rounded-xl border-2 border-[#17142B] bg-[#FFF8E8] p-3 shadow-[2px_2px_0_#17142B]"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-xl shadow-[1px_1px_0_#17142B]">
-                              {candidate.emoji}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h5 className="text-sm font-black uppercase text-[#17142B]">
-                                  {candidate.name}
-                                </h5>
-                                <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-1.5 py-0.2 text-[9px] font-black uppercase text-[#17142B]">
-                                  +{candidate.gapSkills.length} SKILL GAP{candidate.gapSkills.length > 1 ? "S" : ""}
-                                </span>
-                              </div>
-                              <p className="text-xs font-black uppercase text-[#7046D9]">
-                                {candidate.role} · {candidate.experience}
-                              </p>
-                            </div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">{candidate.emoji}</span>
+                          <div>
+                            <p className="text-xs font-black uppercase text-[#17142B]">
+                              {candidate.name}
+                            </p>
+                            <p className="text-[10px] font-black uppercase text-[#7046D9]">
+                              {candidate.role} · +{candidate.gapSkills.length} Gaps
+                            </p>
                           </div>
-
-                          <button
-                            onClick={() => handleAddCandidate(candidate)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#17142B] transition active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:-translate-y-0.5"
-                          >
-                            <UserPlus size={13} />
-                            + ADD TO TEAM
-                          </button>
                         </div>
+
+                        <button
+                          onClick={() => handleAddCandidate(candidate)}
+                          className="inline-flex items-center gap-1 rounded-lg border-2 border-[#17142B] bg-[#7046D9] px-2.5 py-1 text-[10px] font-black uppercase text-white shadow-[1px_1px_0_#17142B] hover:-translate-y-0.5"
+                        >
+                          <UserPlus size={11} />
+                          ADD
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1454,36 +1241,128 @@ function TeamAnalysis() {
           </div>
         </section>
 
-        {/* ==================== 12. TEAM BADGES ==================== */}
-        <section className="mb-10 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+        {/* ==================== 13. TEAM EVOLUTION TIMELINE ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
           <div className="mb-4 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B] shadow-[1px_1px_0_#17142B]">
-                <Award size={18} />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                <Clock size={16} />
               </div>
               <div>
-                <h2 className="text-xl font-black uppercase text-[#17142B]">
-                  TEAM BADGES
-                </h2>
+                <h3 className="text-base font-black uppercase text-[#17142B]">
+                  TEAM EVOLUTION
+                </h3>
                 <p className="text-xs font-bold text-slate-500">
-                  Condition-based squad achievements
+                  How your squad power evolved as allies were assembled
                 </p>
               </div>
             </div>
 
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-              {teamBadges.filter((b) => b.unlocked).length} OF {teamBadges.length} UNLOCKED
+            <span className="text-xs font-black uppercase text-[#7046D9]">
+              {teamEvolution.length} MILESTONES
             </span>
           </div>
 
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-            {teamBadges.map((badge) => (
+          {/* Stepper Timeline */}
+          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
+            {teamEvolution.map((step, idx) => (
+              <div
+                key={idx}
+                className="relative flex flex-1 flex-col items-center text-center w-full"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#17142B] bg-[#FFD86B] text-xs font-black shadow-[2px_2px_0_#17142B]">
+                  #{step.membersCount}
+                </div>
+                <h4 className="mt-2 text-xs font-black uppercase text-[#17142B]">
+                  {step.event}
+                </h4>
+                <span className="mt-0.5 inline-block rounded-md border border-[#17142B] bg-[#BDE7D6] px-2 py-0.5 text-[10px] font-black">
+                  {step.coverage}% Coverage
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 mt-1">
+                  {step.membersCount} {step.membersCount === 1 ? "builder" : "builders"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ==================== 14. SUGGESTED TEAM LEAD ==================== */}
+        {teamLead && (
+          <section className="relative mb-8 overflow-hidden rounded-2xl border-2 border-[#17142B] bg-[#FFD86B] p-6 shadow-[5px_5px_0_#17142B]">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 rounded-md border-2 border-[#17142B] bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_#17142B]">
+                  <Star size={13} fill="currentColor" />
+                  Suggested Team Lead
+                </div>
+                <p className="mt-1 text-xs font-bold text-[#17142B]/70">
+                  Calculated based on experience, skill count, and mission alignment.
+                </p>
+              </div>
+
+              <div className="rounded-xl border-2 border-[#17142B] bg-[#7046D9] px-3 py-2 text-center text-white shadow-[2px_2px_0_#17142B]">
+                <p className="text-[9px] font-black uppercase">Lead Score</p>
+                <p className="text-xl font-black">{teamLead.leadScore}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 rounded-xl border-2 border-[#17142B] bg-white p-4 shadow-[3px_3px_0_#17142B]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#17142B] bg-[#DCCFFF] text-3xl shadow-[2px_2px_0_#17142B]">
+                {teamLead.emoji}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-lg font-black uppercase text-[#17142B]">
+                    {teamLead.name}
+                  </h4>
+                  {(teamLead.id === "current-user" || teamLead.isCurrentUser) && (
+                    <span className="rounded-md border-2 border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[9px] font-black uppercase">
+                      YOU
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-black uppercase text-[#7046D9]">
+                  {teamLead.role} · {teamLead.experience}
+                </p>
+                <p className="mt-1 text-[11px] font-bold text-slate-600">
+                  Provides high technical capability and strong alignment with {projectGoal}.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ==================== 15. TEAM ACHIEVEMENTS (BADGES) ==================== */}
+        <section className="mb-8 rounded-2xl border-2 border-[#17142B] bg-white p-6 shadow-[4px_4px_0_#17142B]">
+          <div className="mb-4 flex items-center justify-between border-b-2 border-[#17142B]/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#17142B] bg-[#FFD86B] text-[#17142B]">
+                <Award size={16} />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase text-[#17142B]">
+                  TEAM ACHIEVEMENTS
+                </h3>
+                <p className="text-xs font-bold text-slate-500">
+                  Data-driven condition achievements earned by your squad
+                </p>
+              </div>
+            </div>
+
+            <span className="text-xs font-black uppercase text-slate-500">
+              {teamAchievements.filter((b) => b.unlocked).length} OF {teamAchievements.length} UNLOCKED
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {teamAchievements.map((badge) => (
               <div
                 key={badge.id}
-                className={`flex flex-col justify-between rounded-xl border-2 p-4 transition ${
+                className={`flex flex-col justify-between rounded-xl border-2 p-3.5 transition ${
                   badge.unlocked
                     ? "border-[#17142B] bg-[#FFF8E8] shadow-[3px_3px_0_#17142B]"
-                    : "border-slate-300 bg-slate-50 opacity-60"
+                    : "border-slate-300 bg-slate-50 opacity-50"
                 }`}
               >
                 <div>
@@ -1499,26 +1378,35 @@ function TeamAnalysis() {
                       {badge.unlocked ? "UNLOCKED" : "LOCKED"}
                     </span>
                   </div>
-                  <h3 className="mt-2 text-xs font-black uppercase text-[#17142B]">
+                  <h4 className="mt-2 text-xs font-black uppercase text-[#17142B]">
                     {badge.title}
-                  </h3>
-                  <p className="mt-0.5 text-[11px] font-bold text-slate-600">
+                  </h4>
+                  <p className="mt-0.5 text-[10px] font-bold text-slate-600">
                     {badge.description}
                   </p>
                 </div>
-                <span className="mt-3 text-[9px] font-black uppercase text-[#7046D9]">
-                  Goal: {badge.criteria}
+                <span className="mt-2 text-[8px] font-black uppercase text-[#7046D9]">
+                  {badge.criteria}
                 </span>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ==================== 13. ADD MORE TEAMMATES ACTION ==================== */}
-        <div className="mt-8 flex justify-center">
+        {/* ==================== 16 & 17. SHARE & ADD MORE ==================== */}
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-white px-7 py-3.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[3px_3px_0_#17142B] transition hover:-translate-y-0.5"
+          >
+            <Share2 size={15} />
+            Share My Squad Card
+          </button>
+
           <button
             onClick={() => navigate("/find-teammates")}
-            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-8 py-3.5 text-sm font-black uppercase tracking-wider text-[#17142B] shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#17142B] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-[#17142B] bg-[#FFD86B] px-8 py-3.5 text-xs font-black uppercase tracking-wider text-[#17142B] shadow-[4px_4px_0_#17142B] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#17142B]"
           >
             ← Add More Teammates
           </button>
@@ -1533,10 +1421,9 @@ function TeamAnalysis() {
             aria-modal="true"
           >
             <div
-              className="relative flex max-h-[90vh] w-full max-w-md flex-col rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] shadow-[8px_8px_0_#17142B]"
+              className="relative flex max-h-[92vh] w-full max-w-md flex-col rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] shadow-[8px_8px_0_#17142B]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
               <div className="flex items-center justify-between rounded-t-[22px] border-b-2 border-[#17142B] bg-white px-5 py-4">
                 <span className="text-xs font-black uppercase tracking-wider text-[#17142B]">
                   SHARE MY SQUAD CARD
@@ -1555,7 +1442,7 @@ function TeamAnalysis() {
                 <div className="rounded-2xl border-2 border-[#17142B] bg-white p-5 shadow-[4px_4px_0_#17142B]">
                   <div className="flex items-center justify-between border-b-2 border-[#17142B] pb-3">
                     <span className="text-xs font-black uppercase text-[#7046D9]">
-                      ⚡ TEAMFUSE DOSSIER
+                      ⚡ TEAMFUSE SQUAD
                     </span>
                     <span className="rounded bg-[#FFD86B] border border-[#17142B] px-2 py-0.5 text-[9px] font-black uppercase">
                       ISSUE #01
@@ -1565,8 +1452,11 @@ function TeamAnalysis() {
                   <h3 className="mt-3 text-2xl font-black uppercase text-[#17142B]">
                     {teamName}
                   </h3>
-                  <p className="text-xs font-bold text-slate-500">
-                    Mission: {projectGoal}
+                  <p className="mt-0.5 text-xs font-bold italic text-slate-600">
+                    “{projectBrief}”
+                  </p>
+                  <p className="text-[11px] font-black uppercase text-[#7046D9] mt-1">
+                    MISSION: {projectGoal} · {team.length} BUILDERS
                   </p>
 
                   {/* Members list */}
@@ -1594,35 +1484,43 @@ function TeamAnalysis() {
                   </div>
 
                   {/* Metrics summary */}
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-2">
-                      <p className="text-sm font-black text-[#17142B]">
+                  <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-1.5">
+                      <p className="text-xs font-black text-[#17142B]">
                         {skillCoverage}%
                       </p>
-                      <p className="text-[9px] font-black uppercase text-slate-500">
+                      <p className="text-[8px] font-black uppercase text-slate-500">
                         Coverage
                       </p>
                     </div>
-                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-2">
-                      <p className="text-sm font-black text-[#17142B]">
+                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-1.5">
+                      <p className="text-xs font-black text-[#17142B]">
                         {compatibilityScore}%
                       </p>
-                      <p className="text-[9px] font-black uppercase text-slate-500">
-                        Team Fit
+                      <p className="text-[8px] font-black uppercase text-slate-500">
+                        Fit
                       </p>
                     </div>
-                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-2">
-                      <p className="text-sm font-black text-[#17142B]">
+                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-1.5">
+                      <p className="text-xs font-black text-[#17142B]">
                         {readinessScore}%
                       </p>
-                      <p className="text-[9px] font-black uppercase text-slate-500">
-                        Readiness
+                      <p className="text-[8px] font-black uppercase text-slate-500">
+                        Ready
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[#17142B] bg-[#FFF8E8] p-1.5">
+                      <p className="text-xs font-black text-[#17142B]">
+                        {chemistryScore}%
+                      </p>
+                      <p className="text-[8px] font-black uppercase text-slate-500">
+                        Chemistry
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-2">
+                <div className="mt-4">
                   <button
                     type="button"
                     onClick={handleCopySummary}
@@ -1644,24 +1542,17 @@ function TeamAnalysis() {
             onClick={() => setReplaceMember(null)}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="modal-headline"
           >
             <div
               className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-3xl border-2 border-[#17142B] bg-[#FFF8E8] shadow-[8px_8px_0_#17142B]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
               <div className="flex items-start justify-between rounded-t-[22px] border-b-2 border-[#17142B] bg-white px-6 py-5">
                 <div>
-                  <div className="mb-1">
-                    <span className="inline-block rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
-                      REPLACE TEAMMATE
-                    </span>
-                  </div>
-                  <h2
-                    id="modal-headline"
-                    className="text-2xl font-black uppercase tracking-tight text-[#17142B]"
-                  >
+                  <span className="inline-block rounded-md border-2 border-[#17142B] bg-[#DCCFFF] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#17142B] shadow-[2px_2px_0_#17142B]">
+                    REPLACE TEAMMATE
+                  </span>
+                  <h2 className="mt-1 text-2xl font-black uppercase tracking-tight text-[#17142B]">
                     Find a Better Fit
                   </h2>
                   <p className="text-xs font-bold text-slate-600">
@@ -1672,14 +1563,12 @@ function TeamAnalysis() {
                 <button
                   type="button"
                   onClick={() => setReplaceMember(null)}
-                  aria-label="Close modal"
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-lg font-black text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:-translate-y-0.5 hover:bg-[#FFD6CE]"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#17142B] bg-white text-lg font-black text-[#17142B] shadow-[2px_2px_0_#17142B] transition hover:bg-[#FFD6CE]"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Modal Body / Candidate List */}
               <div className="overflow-y-auto p-6">
                 {prioritizedCandidates.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-[#17142B]/30 bg-white/70 p-8 text-center">
@@ -1709,18 +1598,8 @@ function TeamAnalysis() {
                                   {candidate.name}
                                 </h4>
                                 <p className="text-xs font-black uppercase text-[#7046D9]">
-                                  {candidate.role}
+                                  {candidate.role} · {candidate.experience}
                                 </p>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                  <span className="rounded-md border border-[#17142B] bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                                    {candidate.experience}
-                                  </span>
-                                  {candidate.projectGoal && (
-                                    <span className="truncate rounded-md border border-[#17142B] bg-[#FFD86B] px-2 py-0.5 text-[10px] font-black uppercase text-[#17142B]">
-                                      {candidate.projectGoal}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
                             </div>
 
